@@ -34,7 +34,7 @@ and feedback.
 
 | | |
 | --- | --- |
-| Application | _pending deployment_ |
+| Application | <https://assignment-system-alpha.vercel.app> |
 | API | <https://assignmentsystem.onrender.com> |
 | Swagger | <https://assignmentsystem.onrender.com/swagger> |
 | Health | <https://assignmentsystem.onrender.com/health> |
