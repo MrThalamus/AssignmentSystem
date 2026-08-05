@@ -14,10 +14,10 @@ and feedback.
 
 - [Live demo](#live-demo)
 - [Demo credentials](#demo-credentials)
-- [Quick start with Docker](#quick-start-with-docker)
-- [Running locally without Docker](#running-locally-without-docker)
+- [Running locally](#running-locally)
 - [Database setup](#database-setup)
 - [Running the tests](#running-the-tests)
+- [Running with Docker (optional)](#running-with-docker-optional)
 - [Deployment](#deployment)
 - [Features by role](#features-by-role)
 - [Business rules](#business-rules)
@@ -73,26 +73,7 @@ hard-coded secrets. Change them before exposing the application to anyone.
 
 ---
 
-## Quick start with Docker
-
-```bash
-cp .env.example .env
-# edit .env: set POSTGRES_PASSWORD and a Jwt__Key of at least 32 bytes
-docker compose up --build
-```
-
-| | |
-| --- | --- |
-| Web UI | <http://localhost:3000> |
-| Swagger | <http://localhost:5080/swagger> |
-| Health check | <http://localhost:5080/health> |
-
-The API applies its EF Core migrations and inserts the demo data on startup, so
-there is nothing to create by hand.
-
----
-
-## Running locally without Docker
+## Running locally
 
 ### Prerequisites
 
@@ -256,6 +237,33 @@ Beyond the unit tests, the running API was exercised against a real PostgreSQL 1
 instance — authentication, role enforcement across all three roles, the submission
 and grading workflow, and the assignment lifecycle — covering 56 request/response
 assertions.
+
+---
+
+## Running with Docker (optional)
+
+A Compose stack is included for anyone who would rather not install .NET, Node and
+PostgreSQL separately. **[Running locally](#running-locally) is the primary route** —
+it is the one these instructions were written and verified against.
+
+```bash
+cp .env.example .env
+# edit .env: set POSTGRES_PASSWORD and a Jwt__Key of at least 32 bytes
+docker compose up --build
+```
+
+| | |
+| --- | --- |
+| Web UI | <http://localhost:3000> |
+| Swagger | <http://localhost:5080/swagger> |
+| Health check | <http://localhost:5080/health> |
+
+The API applies its EF Core migrations and inserts the demo data on startup, so
+there is nothing to create by hand.
+
+The backend image is the one deployed to Render, so it is exercised on every deploy.
+The Compose stack as a whole has not been run on the development machine — see
+[known limitations](#known-limitations).
 
 ---
 
@@ -771,6 +779,12 @@ Stated plainly rather than hidden.
   compiles to SQL, not that PostgreSQL produces identical results. Behavioural
   correctness is covered by the service tests, and the API was verified end-to-end
   against real PostgreSQL.
+
+- **The Docker Compose stack has not been run end to end.** Docker was not available
+  on the development machine, so the local instructions are what the setup steps were
+  verified against. The backend image is exercised on every deploy to Render, but the
+  frontend image and the Compose file itself have not been built — hence Docker being
+  offered as an optional convenience rather than the headline setup route.
 
 - **Pagination is offset-based**, which is fine at this scale but drifts under
   concurrent inserts on large tables. Keyset pagination would be the fix.
