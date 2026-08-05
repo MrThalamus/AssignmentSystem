@@ -35,7 +35,9 @@ and feedback.
 | | |
 | --- | --- |
 | Application | _pending deployment_ |
-| API / Swagger | _pending deployment_ |
+| API | <https://assignmentsystem.onrender.com> |
+| Swagger | <https://assignmentsystem.onrender.com/swagger> |
+| Health | <https://assignmentsystem.onrender.com/health> |
 
 > **The API sleeps when idle.** It runs on a free tier that shuts the container
 > down after 15 minutes without traffic, so the **first request after a quiet
