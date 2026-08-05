@@ -1,3 +1,7 @@
+# Build output and local cruft that must not reach the image. The Dockerfile and
+# this file are deliberately NOT listed: BuildKit applies these rules to the
+# Dockerfile transfer as well, so ignoring it leaves the builder with nothing to
+# read and the build fails before it starts.
 **/bin
 **/obj
 **/.vs
@@ -5,5 +9,3 @@
 **/logs
 .git
 .gitignore
-Dockerfile
-.dockerignore
