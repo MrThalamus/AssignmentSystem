@@ -20,16 +20,14 @@ RUN dotnet publish src/AssignmentSystem.Api/AssignmentSystem.Api.csproj \
 FROM mcr.microsoft.com/dotnet/aspnet:10.0-alpine AS runtime
 WORKDIR /app
 
-# The health check in docker-compose.yml uses wget.
-RUN apk add --no-cache wget \
-    && addgroup -S app && adduser -S -G app app
-
 COPY --from=build /app ./
 
-# Serilog writes a rolling file alongside the console sink.
-RUN mkdir -p /app/logs && chown -R app:app /app
+# The .NET images already provide a non-root user and expose its id as APP_UID, so
+# there is nothing to create here — running addgroup/adduser again fails because
+# the name is already taken. Alpine's busybox also already provides the wget the
+# compose health check uses, so no package install is needed either.
+USER ${APP_UID:-1654}
 
-USER app
 EXPOSE 8080
 ENV ASPNETCORE_HTTP_PORTS=8080
 
