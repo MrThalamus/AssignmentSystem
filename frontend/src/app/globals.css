@@ -1,0 +1,14 @@
+@import "tailwindcss";
+
+/*
+ * The UI commits to a single light theme: every component styles itself with
+ * explicit slate/white classes, so honouring prefers-color-scheme here would only
+ * repaint the page background and leave the cards unreadable.
+ */
+:root {
+  color-scheme: light;
+}
+
+body {
+  @apply bg-slate-50 text-slate-900 antialiased;
+}
