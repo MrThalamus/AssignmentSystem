@@ -6,7 +6,7 @@ and feedback.
 
 - **Backend** — ASP.NET Core 10 Web API (C#), EF Core, PostgreSQL, JWT authentication, Swagger
 - **Frontend** — Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS
-- **Tests** — 214 xUnit tests covering business rules, authorisation and the submission workflow
+- **Tests** — 230 xUnit tests covering business rules, authorisation and the submission workflow
 
 ---
 
@@ -217,7 +217,7 @@ cd backend
 dotnet test
 ```
 
-**214 tests, all passing.** They are grouped by what they protect:
+**230 tests, all passing.** They are grouped by what they protect:
 
 | Area | Tests | What they cover |
 | --- | --- | --- |
@@ -231,6 +231,7 @@ dotnet test
 | `Security/AuthenticationTests` | 10 | Login, password change, token claims |
 | `Security/PasswordHashingTests` | 8 | PBKDF2 hashing, salting and malformed input |
 | `Persistence/QueryTranslationTests` | 14 | Every list query compiles to SQL on a relational provider |
+| `Persistence/PostgresConnectionStringTests` | 16 | Converting the URI form hosted providers issue into what Npgsql accepts |
 
 Two of those deserve a note, because they exist to catch mistakes that are otherwise
 invisible until runtime:
@@ -266,20 +267,17 @@ The order matters — each service needs a URL the previous step produces.
 
 ### 1. Database — Neon
 
-Create a project and copy its connection string. It arrives as a URI:
+Create a project and copy its connection string. Paste it exactly as given:
 
 ```
 postgresql://user:password@ep-xxx.aws.neon.tech/neondb?sslmode=require
 ```
 
-**Npgsql cannot read that form.** Rewrite it as keywords, keeping SSL on:
-
-```
-Host=ep-xxx.aws.neon.tech;Database=neondb;Username=user;Password=password;SSL Mode=Require;Trust Server Certificate=true
-```
-
-This conversion is the single easiest step to get wrong; a URI produces a confusing
-format error rather than a helpful one.
+Npgsql itself only understands the keyword form, so the application converts the
+URI on startup — see
+[`PostgresConnectionString`](backend/src/AssignmentSystem.Infrastructure/Persistence/PostgresConnectionString.cs).
+Either form works, and TLS is required by default. Rewriting the string by hand is
+error-prone and no longer necessary.
 
 ### 2. API — Render
 
