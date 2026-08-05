@@ -13,8 +13,12 @@ import type {
   UserRole,
 } from "./types";
 
+// Trimmed before use: this value is typically pasted into a hosting dashboard, and
+// a stray tab or newline rides along more often than not. Browsers happen to strip
+// whitespace while parsing a URL, so the damage is invisible until something else
+// concatenates the value and fails for no apparent reason.
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ?? "http://localhost:5080";
+  process.env.NEXT_PUBLIC_API_BASE_URL?.trim().replace(/\/+$/, "") || "http://localhost:5080";
 
 const TOKEN_STORAGE_KEY = "assignment-system.token";
 const USER_STORAGE_KEY = "assignment-system.user";
