@@ -1,0 +1,56 @@
+# =============================================================================
+#  Render blueprint for the API.
+#
+#  In the Render dashboard: New -> Blueprint -> pick this repository. Render reads
+#  this file and creates the service; you then fill in the two values marked
+#  `sync: false` below, which are deliberately not committed.
+#
+#  The frontend is deployed separately on Vercel, and PostgreSQL is hosted on
+#  Neon — Render's own free PostgreSQL instances are deleted after 30 days, which
+#  would take the demo down mid-evaluation.
+# =============================================================================
+
+services:
+  - type: web
+    name: assignment-system-api
+    runtime: docker
+    plan: free
+    region: oregon
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+
+    # Unauthenticated endpoint, so Render can probe it without a token.
+    healthCheckPath: /health
+
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+
+      # Neon connection string in Npgsql keyword form — see README. Entered in the
+      # dashboard so the database password never reaches the repository.
+      - key: ConnectionStrings__DefaultConnection
+        sync: false
+
+      # Render generates a strong value once and keeps it. Regenerating it signs
+      # every existing token out, which is the correct behaviour for a key leak.
+      - key: Jwt__Key
+        generateValue: true
+
+      - key: Jwt__Issuer
+        value: AssignmentSystem
+      - key: Jwt__Audience
+        value: AssignmentSystemClient
+      - key: Jwt__ExpiryMinutes
+        value: "480"
+
+      # The API migrates and seeds itself on boot, so a fresh database needs no
+      # manual setup. Seeding is idempotent and a no-op on later restarts.
+      - key: Database__AutoMigrate
+        value: "true"
+      - key: Seed__Enabled
+        value: "true"
+
+      # The deployed Vercel URL, e.g. https://assignment-system.vercel.app.
+      # Set after the frontend's first deploy, then redeploy this service.
+      - key: Cors__AllowedOrigins__0
+        sync: false

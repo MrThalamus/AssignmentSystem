@@ -19,6 +19,9 @@ ARG NEXT_PUBLIC_API_BASE_URL=http://localhost:5080
 ENV NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL}
 ENV NEXT_TELEMETRY_DISABLED=1
 
+# Switches next.config.ts to the standalone output this image depends on.
+ENV DOCKER_BUILD=1
+
 RUN npm run build
 
 # ------------------------------------------------------------- runtime ---

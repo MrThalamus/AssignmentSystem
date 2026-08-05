@@ -33,4 +33,8 @@ USER app
 EXPOSE 8080
 ENV ASPNETCORE_HTTP_PORTS=8080
 
-ENTRYPOINT ["dotnet", "AssignmentSystem.Api.dll"]
+# Platforms such as Render assign a port at runtime through PORT and route traffic
+# only to that port. Preferring it — while falling back to 8080 for local
+# docker compose — keeps one image working in both places. `exec` keeps dotnet as
+# PID 1 so it still receives the container's stop signal.
+ENTRYPOINT ["sh", "-c", "ASPNETCORE_HTTP_PORTS=${PORT:-8080} exec dotnet AssignmentSystem.Api.dll"]
