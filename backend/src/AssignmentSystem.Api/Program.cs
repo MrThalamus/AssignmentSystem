@@ -157,6 +157,31 @@ app.MapControllers();
 // Unauthenticated liveness probe, handy for container health checks.
 app.MapGet("/health", () => Results.Ok(new { status = "healthy" })).AllowAnonymous();
 
+// Readiness probe that actually opens a connection and runs a query.
+//
+// Deliberately separate from /health rather than folded into it. Render's health
+// check points at /health, so making that one touch the database would let a brief
+// database outage restart an API that is otherwise perfectly healthy. This endpoint
+// also gives an uptime pinger something to call that keeps the serverless database
+// awake - hitting /health only keeps the container awake, and the database suspends
+// on its own idle timer regardless.
+app.MapGet("/health/db", async (ApplicationDbContext db, ILogger<Program> logger, CancellationToken ct) =>
+{
+    try
+    {
+        await db.Database.ExecuteSqlRawAsync("SELECT 1", ct);
+        return Results.Ok(new { status = "healthy", database = "reachable" });
+    }
+    catch (Exception exception)
+    {
+        logger.LogError(exception, "Readiness probe could not reach the database");
+
+        return Results.Problem(
+            title: "The database is not reachable.",
+            statusCode: StatusCodes.Status503ServiceUnavailable);
+    }
+}).AllowAnonymous();
+
 app.Run();
 
 // Brings the database up to date before the first request. Migrating on startup is

@@ -38,12 +38,16 @@ and feedback.
 | API | <https://assignmentsystem.onrender.com> |
 | Swagger | <https://assignmentsystem.onrender.com/swagger> |
 | Health | <https://assignmentsystem.onrender.com/health> |
+| Readiness | <https://assignmentsystem.onrender.com/health/db> |
 
 > **The API sleeps when idle.** It runs on a free tier that shuts the container
 > down after 15 minutes without traffic, so the **first request after a quiet
 > period can take up to a minute** while it wakes and reconnects. Everything is
 > immediate once it is warm. If the first page load looks stuck, give it a moment
 > rather than assuming it is broken.
+
+To avoid the delay altogether, point an uptime checker at `/health/db` every ten
+minutes — see [Keeping the demo warm](#keeping-the-demo-warm).
 
 Sign in with any account from the table below. Please treat the deployment as a
 throwaway demonstration — the credentials are published here, so anyone can sign
@@ -257,6 +261,7 @@ docker compose up --build
 | Web UI | <http://localhost:3000> |
 | Swagger | <http://localhost:5080/swagger> |
 | Health check | <http://localhost:5080/health> |
+| Readiness check | <http://localhost:5080/health/db> |
 
 The API applies its EF Core migrations and inserts the demo data on startup, so
 there is nothing to create by hand.
@@ -324,6 +329,20 @@ build, add:
 Back in Render, set `Cors__AllowedOrigins__0` to the Vercel URL and redeploy. Until
 this is done the browser blocks every API call as a cross-origin request, which
 shows up as a login that silently fails.
+
+### Keeping the demo warm
+
+Two independent idle timers stand between a visitor and a fast first page: Render
+stops the container after 15 minutes, and Neon suspends the database compute after
+about five. Pointing a free uptime checker (UptimeRobot, cron-job.org) at
+`/health/db` every ten minutes resets both, because that endpoint opens a real
+connection — `/health` answers without touching the database and so keeps only the
+container awake.
+
+Watch the free allowance: Render grants roughly 750 instance-hours a month, and
+staying up around the clock spends about 730 of them, which leaves nothing for a
+second service. Scheduling the check for a twelve-hour daily window costs around 365
+hours and still covers any working day.
 
 ### Refreshing the demo data
 
@@ -550,8 +569,15 @@ a clear message. They are the backstop.
 
 ## API reference
 
-Every endpoint except `POST /api/auth/login` requires a bearer token. Full interactive
-documentation is at `/swagger`.
+Every endpoint requires a bearer token except `POST /api/auth/login` and the two
+health probes below. Full interactive documentation is at `/swagger`.
+
+### Health — anonymous
+
+| Method | Route | Purpose |
+| --- | --- | --- |
+| GET | `/health` | Liveness. Answers without touching the database, so a database outage cannot restart a healthy container. This is what Render probes. |
+| GET | `/health/db` | Readiness. Opens a connection and runs `SELECT 1`; returns 503 if that fails. Also what an uptime checker should call to keep the serverless database awake. |
 
 ### Auth
 
