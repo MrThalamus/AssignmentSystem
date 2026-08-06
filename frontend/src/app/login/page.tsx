@@ -17,22 +17,16 @@ const loginSchema = z.object({
 
 type LoginValues = z.infer<typeof loginSchema>;
 
-const demoAccounts = [
-  { role: "Administrator", email: "admin@school.edu", password: "Admin@123" },
-  { role: "Teacher", email: "nazmul.hasan@school.edu", password: "Teacher@123" },
-  { role: "Student", email: "rafi.ahmed@school.edu", password: "Student@123" },
-];
-
 export default function LoginPage() {
   const { signIn, user, isLoading } = useAuth();
   const router = useRouter();
   const [failure, setFailure] = useState<string | null>(null);
   const isWarming = useIsWarming();
 
-  // Start the host waking while the visitor is still reading the demo credentials,
-  // so the sign-in request itself does not have to sit through a cold start. It is
-  // deliberately fire-and-forget: a failure here means the real request will report
-  // the problem properly, and there is nothing useful to say about a warm-up.
+  // Start the host waking as soon as the screen loads, so the sign-in request itself
+  // does not have to sit through a cold start. It is deliberately fire-and-forget: a
+  // failure here means the real request will report the problem properly, and there
+  // is nothing useful to say about a warm-up.
   useEffect(() => {
     void api.health.wake().catch(() => {});
   }, []);
@@ -40,7 +34,6 @@ export default function LoginPage() {
   const {
     register,
     handleSubmit,
-    setValue,
     formState: { errors, isSubmitting },
   } = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
@@ -64,11 +57,6 @@ export default function LoginPage() {
       setFailure(messageFor(cause));
     }
   });
-
-  const fillDemoAccount = (email: string, password: string) => {
-    setValue("email", email, { shouldValidate: true });
-    setValue("password", password, { shouldValidate: true });
-  };
 
   return (
     <div className="flex min-h-screen items-center justify-center px-4 py-10">
@@ -115,29 +103,6 @@ export default function LoginPage() {
               Sign in
             </Button>
           </form>
-        </Card>
-
-        <Card className="p-5">
-          <p className="text-sm font-medium text-slate-800">Demo accounts</p>
-          <p className="mt-0.5 text-xs text-slate-500">
-            Created by the seed data. Select one to fill the form.
-          </p>
-          <ul className="mt-3 space-y-2">
-            {demoAccounts.map((account) => (
-              <li key={account.email}>
-                <button
-                  type="button"
-                  onClick={() => fillDemoAccount(account.email, account.password)}
-                  className="w-full rounded-md border border-slate-200 px-3 py-2 text-left transition hover:border-slate-300 hover:bg-slate-50"
-                >
-                  <span className="block text-sm font-medium text-slate-800">{account.role}</span>
-                  <span className="block text-xs text-slate-500">
-                    {account.email} &middot; {account.password}
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
         </Card>
       </div>
     </div>
