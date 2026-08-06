@@ -12,10 +12,15 @@ export default function EditAssignmentPage() {
   const { id } = useParams<{ id: string }>();
 
   const { data, error, isLoading } = useAsync(
-    async () => ({
-      assignment: await api.assignments.get(id),
-      courseSubjects: await api.courses.teachableSubjects(),
-    }),
+    // Independent of each other, so fetch them side by side rather than in sequence.
+    async () => {
+      const [assignment, courseSubjects] = await Promise.all([
+        api.assignments.get(id),
+        api.courses.teachableSubjects(),
+      ]);
+
+      return { assignment, courseSubjects };
+    },
     [id],
   );
 

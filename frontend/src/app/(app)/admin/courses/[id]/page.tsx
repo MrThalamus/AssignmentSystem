@@ -26,14 +26,29 @@ export default function CourseDetailPage() {
   const { id } = useParams<{ id: string }>();
 
   const { data, error, isLoading, reload } = useAsync(
-    async () => ({
-      course: await api.courses.get(id),
-      courseSubjects: await api.courses.listSubjects(id),
-      enrollments: await api.courses.listStudents(id),
-      subjects: await api.subjects.list(),
-      teachers: (await api.users.list({ role: "Teacher", isActive: true, pageSize: 100 })).items,
-      students: (await api.users.list({ role: "Student", isActive: true, pageSize: 100 })).items,
-    }),
+    // Awaiting these one at a time would stack six round trips end to end, which is
+    // painful on a remote database. None of them depend on each other, so they go
+    // out together and the page waits for the slowest rather than for the sum.
+    async () => {
+      const [course, courseSubjects, enrollments, subjects, teacherPage, studentPage] =
+        await Promise.all([
+          api.courses.get(id),
+          api.courses.listSubjects(id),
+          api.courses.listStudents(id),
+          api.subjects.list(),
+          api.users.list({ role: "Teacher", isActive: true, pageSize: 100 }),
+          api.users.list({ role: "Student", isActive: true, pageSize: 100 }),
+        ]);
+
+      return {
+        course,
+        courseSubjects,
+        enrollments,
+        subjects,
+        teachers: teacherPage.items,
+        students: studentPage.items,
+      };
+    },
     [id],
   );
 
