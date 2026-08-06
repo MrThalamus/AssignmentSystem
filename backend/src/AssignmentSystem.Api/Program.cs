@@ -154,6 +154,12 @@ app.UseAuthorization();
 
 app.MapControllers();
 
+// The API has no page of its own at the root, and a bare 404 there reads as a broken
+// deployment to anyone who pastes the service URL into a browser. The documentation is
+// the most useful thing the backend can show them, so send them to it. A temporary
+// redirect on purpose: browsers cache a permanent one, which is awkward to undo.
+app.MapGet("/", () => Results.Redirect("/swagger")).AllowAnonymous();
+
 // Unauthenticated liveness probe, handy for container health checks.
 app.MapGet("/health", () => Results.Ok(new { status = "healthy" })).AllowAnonymous();
 
