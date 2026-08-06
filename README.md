@@ -46,6 +46,8 @@ and feedback.
 > immediate once it is warm. If the first page load looks stuck, give it a moment
 > rather than assuming it is broken.
 
+The login screen starts waking the host as soon as it loads, so the sign-in request
+itself does not usually have to wait, and it says so on screen if the wait runs long.
 To avoid the delay altogether, point an uptime checker at `/health/db` every ten
 minutes — see [Keeping the demo warm](#keeping-the-demo-warm).
 

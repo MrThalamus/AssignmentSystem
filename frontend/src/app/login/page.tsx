@@ -6,8 +6,9 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Alert, Button, Card, Field, Input } from "@/components/ui";
+import { api } from "@/lib/api";
 import { homeRouteFor, useAuth } from "@/lib/auth-context";
-import { messageFor } from "@/lib/use-async";
+import { messageFor, useIsWarming } from "@/lib/use-async";
 
 const loginSchema = z.object({
   email: z.string().min(1, "Enter your email address.").email("Enter a valid email address."),
@@ -26,6 +27,15 @@ export default function LoginPage() {
   const { signIn, user, isLoading } = useAuth();
   const router = useRouter();
   const [failure, setFailure] = useState<string | null>(null);
+  const isWarming = useIsWarming();
+
+  // Start the host waking while the visitor is still reading the demo credentials,
+  // so the sign-in request itself does not have to sit through a cold start. It is
+  // deliberately fire-and-forget: a failure here means the real request will report
+  // the problem properly, and there is nothing useful to say about a warm-up.
+  useEffect(() => {
+    void api.health.wake().catch(() => {});
+  }, []);
 
   const {
     register,
@@ -73,6 +83,14 @@ export default function LoginPage() {
         <Card className="p-6">
           <form onSubmit={onSubmit} noValidate className="space-y-4">
             {failure && <Alert>{failure}</Alert>}
+
+            {isWarming && !failure && (
+              <Alert tone="info" title="Waking the demo server">
+                It runs on a free tier that stops it after a quiet period. This first
+                request can take up to a minute; everything is immediate once it is
+                running.
+              </Alert>
+            )}
 
             <Field label="Email address" htmlFor="email" error={errors.email?.message}>
               <Input

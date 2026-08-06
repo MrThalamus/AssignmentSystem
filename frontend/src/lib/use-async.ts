@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { ApiError } from "./api";
+import { ApiError, subscribeToWarming } from "./api";
 
 interface AsyncState<T> {
   data: T | null;
@@ -61,6 +61,19 @@ export function useAsync<T>(loader: () => Promise<T>, deps: unknown[]): AsyncSta
     isLoading: !isCurrent,
     reload,
   };
+}
+
+/**
+ * True while some request has been outstanding long enough to look stuck, which on
+ * the free tier usually means the host is still waking. Lets a screen say so instead
+ * of showing a spinner that reads as a hang.
+ */
+export function useIsWarming() {
+  const [isWarming, setIsWarming] = useState(false);
+
+  useEffect(() => subscribeToWarming(setIsWarming), []);
+
+  return isWarming;
 }
 
 export function messageFor(cause: unknown) {

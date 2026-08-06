@@ -72,6 +72,84 @@ export const session = {
   },
 };
 
+// ------------------------------------------------------------ waking the host
+
+/**
+ * The demo API runs on a free tier that stops the container after a quiet period,
+ * and the database in front of it suspends on its own idle timer. The first request
+ * after a lull therefore waits for both to come back, which can take the better part
+ * of a minute. Worse, a gateway that gives up while the container is still booting
+ * answers without CORS headers, so the browser reports the whole thing as an opaque
+ * "Failed to fetch" - indistinguishable, to a visitor, from a broken application.
+ *
+ * Two things follow. Retrying a network-level failure converts that dead end into a
+ * slow load, and telling the UI a request has gone quiet lets it explain the wait
+ * rather than leaving a spinner to imply something has hung.
+ */
+const NETWORK_RETRIES = 2;
+const RETRY_DELAY_MS = 3_000;
+const WARMING_AFTER_MS = 4_000;
+
+type WarmingListener = (isWarming: boolean) => void;
+
+const warmingListeners = new Set<WarmingListener>();
+let slowRequestCount = 0;
+
+function publishWarming() {
+  const isWarming = slowRequestCount > 0;
+  for (const listener of warmingListeners) listener(isWarming);
+}
+
+/** Subscribes to "a request is taking unusually long". Returns an unsubscribe. */
+export function subscribeToWarming(listener: WarmingListener) {
+  warmingListeners.add(listener);
+  listener(slowRequestCount > 0);
+
+  return () => {
+    warmingListeners.delete(listener);
+  };
+}
+
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * A fetch that survives a sleeping host.
+ *
+ * Only a network-level rejection is retried. Any response at all - including a 4xx or
+ * 5xx - means the server is awake and answering, so it is passed straight back to the
+ * caller. An aborted request is the caller's own doing and is never retried.
+ */
+async function fetchWithWake(url: string, init: RequestInit, canRetry: boolean) {
+  let countedAsSlow = false;
+
+  const slowTimer = setTimeout(() => {
+    countedAsSlow = true;
+    slowRequestCount += 1;
+    publishWarming();
+  }, WARMING_AFTER_MS);
+
+  try {
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        return await fetch(url, init);
+      } catch (cause) {
+        const aborted = cause instanceof DOMException && cause.name === "AbortError";
+
+        if (aborted || !canRetry || attempt >= NETWORK_RETRIES) throw cause;
+
+        await delay(RETRY_DELAY_MS);
+      }
+    }
+  } finally {
+    clearTimeout(slowTimer);
+
+    if (countedAsSlow) {
+      slowRequestCount -= 1;
+      publishWarming();
+    }
+  }
+}
+
 // --------------------------------------------------------------- the request
 
 type QueryValue = string | number | boolean | undefined | null;
@@ -95,15 +173,26 @@ async function request<T>(
   const { query, ...init } = options;
   const token = session.getToken();
 
-  const response = await fetch(buildUrl(path, query), {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...init.headers,
+  // Only a read is safe to send twice. A retried POST could create a second user or
+  // a duplicate submission, because a network failure never tells us whether the
+  // server processed the request before the connection broke. Reads carry the wake-up
+  // cost anyway: the login screen warms the host before anyone submits anything.
+  const method = (init.method ?? "GET").toUpperCase();
+  const canRetry = method === "GET" || method === "HEAD";
+
+  const response = await fetchWithWake(
+    buildUrl(path, query),
+    {
+      ...init,
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...init.headers,
+      },
+      cache: "no-store",
     },
-    cache: "no-store",
-  });
+    canRetry,
+  );
 
   if (response.status === 204) {
     return undefined as T;
@@ -173,6 +262,16 @@ const del = <T,>(path: string) => request<T>(path, { method: "DELETE" });
 // ------------------------------------------------------------------ endpoints
 
 export const api = {
+  /**
+   * Wakes the host without needing a session. Called from the login screen so the
+   * container and the database are already up by the time anyone submits the form -
+   * the sign-in POST itself cannot be retried safely, so it must not be the request
+   * that absorbs the cold start.
+   */
+  health: {
+    wake: () => get<{ status: string }>("/health/db"),
+  },
+
   auth: {
     login: (email: string, password: string) =>
       post<AuthResponse>("/api/auth/login", { email, password }),
