@@ -64,14 +64,9 @@ The demo dataset is inserted automatically the first time the API starts.
 | Role | Email | Password | Teaches |
 | --- | --- | --- | --- |
 | Admin | `admin@school.edu` | `Admin@123` | — |
-| Teacher | `habib.wahid@school.edu` | `Teacher@123` | Physics (Grade 10) |
-| Teacher | `nazmul.hasan@school.edu` | `Teacher@123` | Maths (Grade 10), Computer Science (Grade 11) |
-| Teacher | `farhana.akter@school.edu` | `Teacher@123` | English (Grade 10), Physics (Grade 11) |
-| Student | `rafi.ahmed@school.edu` | `Student@123` | — |
-| Student | `tasnim.jahan@school.edu` | `Student@123` | — |
-| Student | `imran.kabir@school.edu` | `Student@123` | — |
-| Student | `nusrat.sultana@school.edu` | `Student@123` | — |
-| Student | `sabbir.hossain@school.edu` | `Student@123` | — |
+| Teacher | `nasib.hasan@school.edu` | `Nasib@123` | Computer Science (CSE-101) Grade 11 - Science |
+| Student | `hasib.hasan@school.edu` | `Hasib@123` | — |
+
 
 Every teacher shares one password because it comes from a single configuration value
 (`Seed__TeacherPassword`), not from a per-account secret.
