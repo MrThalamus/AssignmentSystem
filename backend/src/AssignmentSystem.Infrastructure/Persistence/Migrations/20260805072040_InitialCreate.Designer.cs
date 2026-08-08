@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace AssignmentSystem.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260808054153_InitialCreate")]
+    [Migration("20260805072040_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -219,27 +219,23 @@ namespace AssignmentSystem.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("AssignmentId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("AttachmentUrl")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
                     b.Property<int>("AttemptCount")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("integer")
                         .HasDefaultValue(1);
 
-                    b.Property<string>("ContentType")
+                    b.Property<string>("Content")
                         .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
+                        .HasMaxLength(20000)
+                        .HasColumnType("character varying(20000)");
 
                     b.Property<string>("Feedback")
                         .HasMaxLength(5000)
                         .HasColumnType("character varying(5000)");
-
-                    b.Property<string>("FileName")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
-
-                    b.Property<int>("FileSizeBytes")
-                        .HasColumnType("integer");
 
                     b.Property<DateTime?>("GradedAt")
                         .HasColumnType("timestamp with time zone");
@@ -280,20 +276,6 @@ namespace AssignmentSystem.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("submissions", (string)null);
-                });
-
-            modelBuilder.Entity("AssignmentSystem.Domain.Entities.SubmissionFile", b =>
-                {
-                    b.Property<Guid>("SubmissionId")
-                        .HasColumnType("uuid");
-
-                    b.Property<byte[]>("Content")
-                        .IsRequired()
-                        .HasColumnType("bytea");
-
-                    b.HasKey("SubmissionId");
-
-                    b.ToTable("submission_files", (string)null);
                 });
 
             modelBuilder.Entity("AssignmentSystem.Domain.Entities.User", b =>
@@ -433,17 +415,6 @@ namespace AssignmentSystem.Infrastructure.Persistence.Migrations
                     b.Navigation("Student");
                 });
 
-            modelBuilder.Entity("AssignmentSystem.Domain.Entities.SubmissionFile", b =>
-                {
-                    b.HasOne("AssignmentSystem.Domain.Entities.Submission", "Submission")
-                        .WithOne("File")
-                        .HasForeignKey("AssignmentSystem.Domain.Entities.SubmissionFile", "SubmissionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Submission");
-                });
-
             modelBuilder.Entity("AssignmentSystem.Domain.Entities.Assignment", b =>
                 {
                     b.Navigation("Submissions");
@@ -464,11 +435,6 @@ namespace AssignmentSystem.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("AssignmentSystem.Domain.Entities.Subject", b =>
                 {
                     b.Navigation("CourseSubjects");
-                });
-
-            modelBuilder.Entity("AssignmentSystem.Domain.Entities.Submission", b =>
-                {
-                    b.Navigation("File");
                 });
 
             modelBuilder.Entity("AssignmentSystem.Domain.Entities.User", b =>

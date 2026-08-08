@@ -13,6 +13,7 @@ public static class SeedIds
     public static readonly Guid Admin = Make("000000000001");
     public static readonly Guid TeacherNazmul = Make("000000000011");
     public static readonly Guid TeacherFarhana = Make("000000000012");
+    public static readonly Guid TeacherHabib = Make("000000000013");
     public static readonly Guid StudentRafi = Make("000000000021");
     public static readonly Guid StudentTasnim = Make("000000000022");
     public static readonly Guid StudentImran = Make("000000000023");
@@ -34,6 +35,7 @@ public static class SeedIds
     public static readonly Guid CsGrade10English = Make("000000000302");
     public static readonly Guid CsGrade11Physics = Make("000000000303");
     public static readonly Guid CsGrade11Computing = Make("000000000304");
+    public static readonly Guid CsGrade10Physics = Make("000000000305");
 
     // enrollments
     public static readonly Guid EnrollRafiG10 = Make("000000000401");

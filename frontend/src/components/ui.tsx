@@ -7,6 +7,7 @@ import type {
   SelectHTMLAttributes,
   TextareaHTMLAttributes,
 } from "react";
+import { forwardRef, useState } from "react";
 
 /** Tailwind class joiner that drops falsy entries. */
 export const cx = (...classes: (string | false | null | undefined)[]) =>
@@ -160,6 +161,71 @@ const controlClasses =
 
 export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElement>) {
   return <input {...props} className={cx(controlClasses, className)} />;
+}
+
+/**
+ * A password box with a show/hide toggle, so somebody can check what they typed
+ * before submitting rather than after being told it was wrong.
+ *
+ * `type` is deliberately not forwarded from props - this control owns it, because that
+ * is the whole point of the component. Everything else passes straight through, so it
+ * drops into `register(...)` from react-hook-form exactly like `Input` does.
+ */
+export const PasswordInput = forwardRef<
+  HTMLInputElement,
+  Omit<InputHTMLAttributes<HTMLInputElement>, "type">
+>(function PasswordInput({ className, ...props }, ref) {
+  const [revealed, setRevealed] = useState(false);
+
+  return (
+    <div className="relative">
+      <input
+        {...props}
+        ref={ref}
+        type={revealed ? "text" : "password"}
+        // Room for the button, so a long password never runs underneath it.
+        className={cx(controlClasses, "pr-11", className)}
+      />
+      <button
+        type="button"
+        onClick={() => setRevealed((shown) => !shown)}
+        // The label changes with the state; a static "toggle password" would leave a
+        // screen-reader user unable to tell which way it currently is.
+        aria-label={revealed ? "Hide password" : "Show password"}
+        aria-pressed={revealed}
+        title={revealed ? "Hide password" : "Show password"}
+        className="absolute inset-y-0 right-0 flex items-center rounded-r-md px-3 text-slate-500 hover:text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-slate-800"
+      >
+        {revealed ? <EyeOffIcon /> : <EyeIcon />}
+      </button>
+    </div>
+  );
+});
+
+function EyeIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" className="size-5">
+      <path
+        d="M1.5 10S4.5 4.5 10 4.5 18.5 10 18.5 10 15.5 15.5 10 15.5 1.5 10 1.5 10Z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+      />
+      <circle cx="10" cy="10" r="2.5" stroke="currentColor" strokeWidth="1.5" />
+    </svg>
+  );
+}
+
+function EyeOffIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" className="size-5">
+      <path
+        d="M1.5 10S4.5 4.5 10 4.5c1.2 0 2.3.26 3.3.68M18.5 10s-3 5.5-8.5 5.5c-1.2 0-2.3-.26-3.3-.68"
+        stroke="currentColor"
+        strokeWidth="1.5"
+      />
+      <path d="m3 3 14 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
 }
 
 export function Textarea({ className, ...props }: TextareaHTMLAttributes<HTMLTextAreaElement>) {

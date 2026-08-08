@@ -71,6 +71,7 @@ public class DatabaseSeeder : IDatabaseSeeder
             NewUser(SeedIds.Admin, "Ayesha Rahman", "admin@school.edu", UserRole.Admin, _options.AdminPassword, now),
             NewUser(SeedIds.TeacherNazmul, "Nazmul Hasan", "nazmul.hasan@school.edu", UserRole.Teacher, _options.TeacherPassword, now),
             NewUser(SeedIds.TeacherFarhana, "Farhana Akter", "farhana.akter@school.edu", UserRole.Teacher, _options.TeacherPassword, now),
+            NewUser(SeedIds.TeacherHabib, "Habib Wahid", "habib.wahid@school.edu", UserRole.Teacher, _options.TeacherPassword, now),
             NewUser(SeedIds.StudentRafi, "Rafi Ahmed", "rafi.ahmed@school.edu", UserRole.Student, _options.StudentPassword, now),
             NewUser(SeedIds.StudentTasnim, "Tasnim Jahan", "tasnim.jahan@school.edu", UserRole.Student, _options.StudentPassword, now),
             NewUser(SeedIds.StudentImran, "Imran Kabir", "imran.kabir@school.edu", UserRole.Student, _options.StudentPassword, now),
@@ -128,7 +129,11 @@ public class DatabaseSeeder : IDatabaseSeeder
             new CourseSubject { Id = SeedIds.CsGrade10Math, CourseId = SeedIds.CourseGrade10A, SubjectId = SeedIds.SubjectMath, TeacherId = SeedIds.TeacherNazmul, CreatedAt = now },
             new CourseSubject { Id = SeedIds.CsGrade10English, CourseId = SeedIds.CourseGrade10A, SubjectId = SeedIds.SubjectEnglish, TeacherId = SeedIds.TeacherFarhana, CreatedAt = now },
             new CourseSubject { Id = SeedIds.CsGrade11Physics, CourseId = SeedIds.CourseGrade11Science, SubjectId = SeedIds.SubjectPhysics, TeacherId = SeedIds.TeacherFarhana, CreatedAt = now },
-            new CourseSubject { Id = SeedIds.CsGrade11Computing, CourseId = SeedIds.CourseGrade11Science, SubjectId = SeedIds.SubjectComputing, TeacherId = SeedIds.TeacherNazmul, CreatedAt = now }
+            new CourseSubject { Id = SeedIds.CsGrade11Computing, CourseId = SeedIds.CourseGrade11Science, SubjectId = SeedIds.SubjectComputing, TeacherId = SeedIds.TeacherNazmul, CreatedAt = now },
+
+            // Habib's class. A third teacher is only worth seeding if he can actually
+            // set work, which means owning a pairing of his own rather than sharing one.
+            new CourseSubject { Id = SeedIds.CsGrade10Physics, CourseId = SeedIds.CourseGrade10A, SubjectId = SeedIds.SubjectPhysics, TeacherId = SeedIds.TeacherHabib, CreatedAt = now }
         };
 
         await AddMissingAsync(_db.CourseSubjects, courseSubjects, cs => cs.Id, ct);

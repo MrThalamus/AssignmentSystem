@@ -61,15 +61,22 @@ in as an administrator and change the data.
 
 The demo dataset is inserted automatically the first time the API starts.
 
-| Role | Email | Password |
-| --- | --- | --- |
-| Admin | `admin@school.edu` | `Admin@123` |
-| Teacher | `habib.wahid@school.edu` | `Habib@123` |
-| Student | `rafi.ahmed@school.edu` | `Student@123` |
+| Role | Email | Password | Teaches |
+| --- | --- | --- | --- |
+| Admin | `admin@school.edu` | `Admin@123` | — |
+| Teacher | `habib.wahid@school.edu` | `Teacher@123` | Physics (Grade 10) |
+| Teacher | `nazmul.hasan@school.edu` | `Teacher@123` | Maths (Grade 10), Computer Science (Grade 11) |
+| Teacher | `farhana.akter@school.edu` | `Teacher@123` | English (Grade 10), Physics (Grade 11) |
+| Student | `rafi.ahmed@school.edu` | `Student@123` | — |
+| Student | `tasnim.jahan@school.edu` | `Student@123` | — |
+| Student | `imran.kabir@school.edu` | `Student@123` | — |
+| Student | `nusrat.sultana@school.edu` | `Student@123` | — |
+| Student | `sabbir.hossain@school.edu` | `Student@123` | — |
 
+Every teacher shares one password because it comes from a single configuration value
+(`Seed__TeacherPassword`), not from a per-account secret.
 
-
-The two teachers own **different** classes, and the students are enrolled in
+The three teachers own **different** classes, and the students are enrolled in
 **different** courses, so the role scoping is visible immediately: sign in as one
 teacher and you will not see the other's assignments.
 
@@ -190,7 +197,7 @@ psql -d assignment_system -f database/02_seed.sql
 
 | File | Contents |
 | --- | --- |
-| `database/01_schema.sql` | Every table, index and foreign key. Generated from the EF migration with `--idempotent`, so it also records itself in `__EFMigrationsHistory` and the API will not try to re-apply it. |
+| `database/01_schema.sql` | Every table, index and foreign key. Generated from the EF migrations with `--idempotent`, so it also records them in `__EFMigrationsHistory` and the API will not try to re-apply them. |
 | `database/02_seed.sql` | The same demo dataset the application seeder inserts, using the same fixed ids. Deadlines are relative to `now()`, so the data always contains a mix of open, overdue and closed work. No submissions — see below. |
 
 **The demo data contains no submissions.** A submission is a PDF a student uploaded,
@@ -287,6 +294,12 @@ docker compose up --build
 
 The API applies its EF Core migrations and inserts the demo data on startup, so
 there is nothing to create by hand.
+
+Migrations are kept as an unbroken chain rather than being squashed, because a deployed
+database records the ids it has already applied. Rewriting history — even into a
+migration describing an identical schema — leaves the deployment with an id it has
+never seen, and the API then tries to create tables that already exist and refuses to
+start. Adding a migration is always safe; replacing one is not.
 
 The backend image is the one deployed to Render, so it is exercised on every deploy.
 The Compose stack as a whole has not been run on the development machine — see

@@ -5,7 +5,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { PageHeader } from "@/components/app-shell";
-import { Alert, Button, Card, CardHeader, Field, Input } from "@/components/ui";
+import { Alert, Button, Card, CardHeader, Field, PasswordInput } from "@/components/ui";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { messageFor } from "@/lib/use-async";
@@ -93,18 +93,16 @@ export default function SettingsPage() {
               htmlFor="currentPassword"
               error={errors.currentPassword?.message}
             >
-              <Input
+              <PasswordInput
                 id="currentPassword"
-                type="password"
                 autoComplete="current-password"
                 {...register("currentPassword")}
               />
             </Field>
 
             <Field label="New password" htmlFor="newPassword" error={errors.newPassword?.message}>
-              <Input
+              <PasswordInput
                 id="newPassword"
-                type="password"
                 autoComplete="new-password"
                 {...register("newPassword")}
               />
@@ -115,9 +113,8 @@ export default function SettingsPage() {
               htmlFor="confirmPassword"
               error={errors.confirmPassword?.message}
             >
-              <Input
+              <PasswordInput
                 id="confirmPassword"
-                type="password"
                 autoComplete="new-password"
                 {...register("confirmPassword")}
               />

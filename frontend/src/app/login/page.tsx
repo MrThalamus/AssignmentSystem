@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { Alert, Button, Card, Field, Input } from "@/components/ui";
+import { Alert, Button, Card, Field, Input, PasswordInput } from "@/components/ui";
 import { api } from "@/lib/api";
 import { homeRouteFor, useAuth } from "@/lib/auth-context";
 import { messageFor, useIsWarming } from "@/lib/use-async";
@@ -91,9 +91,8 @@ export default function LoginPage() {
             </Field>
 
             <Field label="Password" htmlFor="password" error={errors.password?.message}>
-              <Input
+              <PasswordInput
                 id="password"
-                type="password"
                 autoComplete="current-password"
                 {...register("password")}
               />
