@@ -43,8 +43,9 @@ public class SubmissionConfiguration : IEntityTypeConfiguration<Submission>
 
         builder.HasKey(s => s.Id);
 
-        builder.Property(s => s.Content).HasMaxLength(20_000).IsRequired();
-        builder.Property(s => s.AttachmentUrl).HasMaxLength(2000);
+        builder.Property(s => s.FileName).HasMaxLength(255).IsRequired();
+        builder.Property(s => s.ContentType).HasMaxLength(100).IsRequired();
+        builder.Property(s => s.FileSizeBytes).IsRequired();
         builder.Property(s => s.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
         builder.Property(s => s.Marks).HasPrecision(6, 2);
         builder.Property(s => s.Feedback).HasMaxLength(5000);
@@ -65,9 +66,30 @@ public class SubmissionConfiguration : IEntityTypeConfiguration<Submission>
             .HasForeignKey(s => s.GradedByTeacherId)
             .OnDelete(DeleteBehavior.SetNull);
 
+        // The PDF hangs off the submission one-to-one and dies with it, so a deleted
+        // assignment cannot leave orphaned blobs behind.
+        builder.HasOne(s => s.File)
+            .WithOne(f => f.Submission)
+            .HasForeignKey<SubmissionFile>(f => f.SubmissionId)
+            .OnDelete(DeleteBehavior.Cascade);
+
         // Enforces "one submission per student per assignment" in the database as
         // well as in the service, so a double-click cannot create a second row.
         builder.HasIndex(s => new { s.AssignmentId, s.StudentId }).IsUnique();
         builder.HasIndex(s => s.Status);
+    }
+}
+
+public class SubmissionFileConfiguration : IEntityTypeConfiguration<SubmissionFile>
+{
+    public void Configure(EntityTypeBuilder<SubmissionFile> builder)
+    {
+        builder.ToTable("submission_files");
+
+        // The submission's own id doubles as the key: there is never more than one
+        // file per submission, so a surrogate would only add a second thing to join on.
+        builder.HasKey(f => f.SubmissionId);
+
+        builder.Property(f => f.Content).IsRequired();
     }
 }

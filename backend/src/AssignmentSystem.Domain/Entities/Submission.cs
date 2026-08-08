@@ -1,11 +1,12 @@
 using AssignmentSystem.Domain.Enums;
 using AssignmentSystem.Domain.Exceptions;
+using AssignmentSystem.Domain.ValueObjects;
 
 namespace AssignmentSystem.Domain.Entities;
 
 /// <summary>
-/// One student's answer to one assignment. A student has at most one submission per
-/// assignment - re-submitting overwrites the existing row and bumps
+/// One student's answer to one assignment, handed in as a PDF. A student has at most
+/// one submission per assignment - re-submitting overwrites the existing row and bumps
 /// <see cref="AttemptCount"/> rather than creating a second record, which keeps
 /// "the student's answer" unambiguous when grading.
 /// </summary>
@@ -19,13 +20,18 @@ public class Submission
     public Guid StudentId { get; set; }
     public User Student { get; set; } = null!;
 
-    public string Content { get; set; } = string.Empty;
+    /// <summary>The name of the uploaded PDF, as shown to the student and the teacher.</summary>
+    public string FileName { get; set; } = string.Empty;
+
+    public string ContentType { get; set; } = SubmittedDocument.PdfContentType;
+
+    public int FileSizeBytes { get; set; }
 
     /// <summary>
-    /// Link to work hosted elsewhere. File storage is out of scope for this project,
-    /// so the API accepts a URL rather than a binary upload.
+    /// The bytes themselves. Kept off this entity so the row stays cheap to read;
+    /// only the download endpoint ever loads it.
     /// </summary>
-    public string? AttachmentUrl { get; set; }
+    public SubmissionFile? File { get; set; }
 
     public SubmissionStatus Status { get; set; } = SubmissionStatus.Submitted;
     public bool IsLate { get; set; }
@@ -50,8 +56,7 @@ public class Submission
     public static Submission Create(
         Assignment assignment,
         Guid studentId,
-        string content,
-        string? attachmentUrl,
+        SubmittedDocument document,
         DateTime utcNow)
     {
         if (!assignment.AcceptsSubmissionsAt(utcNow))
@@ -62,25 +67,27 @@ public class Submission
 
         var isLate = assignment.IsPastDeadline(utcNow);
 
-        return new Submission
+        var submission = new Submission
         {
             AssignmentId = assignment.Id,
             StudentId = studentId,
-            Content = content,
-            AttachmentUrl = attachmentUrl,
             Status = isLate ? SubmissionStatus.Late : SubmissionStatus.Submitted,
             IsLate = isLate,
             AttemptCount = 1,
             SubmittedAt = utcNow
         };
+
+        submission.AttachDocument(document);
+
+        return submission;
     }
 
     /// <summary>
-    /// Replaces the answer with a newer attempt. Allowed while the assignment is still
+    /// Replaces the PDF with a newer attempt. Allowed while the assignment is still
     /// open, or at any time after the teacher returned the work for revision. Graded
     /// work is frozen - the teacher must return it first.
     /// </summary>
-    public void UpdateAnswer(Assignment assignment, string content, string? attachmentUrl, DateTime utcNow)
+    public void UpdateAnswer(Assignment assignment, SubmittedDocument document, DateTime utcNow)
     {
         if (Status == SubmissionStatus.Graded)
             throw new BusinessRuleViolationException(
@@ -99,8 +106,7 @@ public class Submission
                     "The deadline has passed and this assignment does not allow late submissions.");
         }
 
-        Content = content;
-        AttachmentUrl = attachmentUrl;
+        AttachDocument(document);
         AttemptCount++;
         UpdatedAt = utcNow;
 
@@ -150,5 +156,22 @@ public class Submission
 
         Status = newStatus;
         UpdatedAt = utcNow;
+    }
+
+    /// <summary>
+    /// Points the submission at a new PDF. The existing row is rewritten rather than
+    /// replaced so that a revision does not leave the previous attempt's bytes behind,
+    /// and so EF sees an update rather than an insert on a key that already exists.
+    /// </summary>
+    private void AttachDocument(SubmittedDocument document)
+    {
+        FileName = document.FileName;
+        ContentType = SubmittedDocument.PdfContentType;
+        FileSizeBytes = document.SizeBytes;
+
+        if (File is null)
+            File = new SubmissionFile { SubmissionId = Id, Content = document.Content };
+        else
+            File.Content = document.Content;
     }
 }

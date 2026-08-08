@@ -12,8 +12,9 @@ public record SubmissionDto(
     Guid StudentId,
     string StudentName,
     string StudentEmail,
-    string Content,
-    string? AttachmentUrl,
+    string FileName,
+    string ContentType,
+    int FileSizeBytes,
     SubmissionStatus Status,
     bool IsLate,
     int AttemptCount,
@@ -24,9 +25,20 @@ public record SubmissionDto(
     DateTime? GradedAt,
     string? GradedByTeacherName);
 
-public record CreateSubmissionRequest(Guid AssignmentId, string Content, string? AttachmentUrl);
+/// <summary>
+/// An uploaded file as the application layer sees it - already buffered, and stripped
+/// of any dependency on ASP.NET's <c>IFormFile</c> so the service stays testable.
+/// </summary>
+/// <param name="FileName">The name as the browser reported it; sanitised before storage.</param>
+/// <param name="ContentType">The browser's claim about the type, which is checked but not trusted.</param>
+public record UploadedFile(string FileName, string? ContentType, byte[] Content);
 
-public record UpdateSubmissionRequest(string Content, string? AttachmentUrl);
+/// <summary>The bytes of a stored submission, ready to be streamed back to the caller.</summary>
+public record SubmissionFileDto(string FileName, string ContentType, byte[] Content);
+
+public record CreateSubmissionRequest(Guid AssignmentId, UploadedFile? File);
+
+public record UpdateSubmissionRequest(UploadedFile? File);
 
 public record GradeSubmissionRequest(decimal Marks, string? Feedback);
 

@@ -114,6 +114,20 @@ public sealed class QueryTranslationTests : IDisposable
         });
     }
 
+    /// <summary>
+    /// The download query reaches through the one-to-one navigation to the file's bytes.
+    /// That has to become a join rather than a second round trip, and the "no file yet"
+    /// case has to survive translation as well.
+    /// </summary>
+    [Fact]
+    public async Task Downloading_a_submission_file_translates()
+    {
+        SignInAs(UserRole.Admin);
+
+        await Assert.ThrowsAsync<AssignmentSystem.Application.Common.Exceptions.NotFoundException>(
+            () => Submissions().DownloadAsync(Guid.NewGuid()));
+    }
+
     // -------------------------------------------------------------- academics
 
     [Fact]

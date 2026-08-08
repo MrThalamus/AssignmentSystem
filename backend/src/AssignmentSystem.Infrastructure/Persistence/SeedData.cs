@@ -50,9 +50,7 @@ public static class SeedIds
     public static readonly Guid AssignmentSortingDraft = Make("000000000504");
     public static readonly Guid AssignmentGeometryClosed = Make("000000000505");
 
-    // submissions
-    public static readonly Guid SubmissionRafiAlgebra = Make("000000000601");
-    public static readonly Guid SubmissionTasnimAlgebra = Make("000000000602");
-    public static readonly Guid SubmissionImranMotionLate = Make("000000000603");
-    public static readonly Guid SubmissionRafiGeometry = Make("000000000604");
+    // Submissions have no fixed ids because they are not seeded: a submission is a PDF
+    // a student uploaded, and the demo data has no business inventing one. The 6xx
+    // range is left free in case that ever changes.
 }

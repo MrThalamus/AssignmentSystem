@@ -1,12 +1,12 @@
 # Assignment & Submission Management System
 
 A role-based web application for a school or college. Teachers create assignments for
-a class and subject, students submit answers against them, and teachers return marks
+a class and subject, students hand their work in as PDFs, and teachers return marks
 and feedback.
 
 - **Backend** — ASP.NET Core 10 Web API (C#), EF Core, PostgreSQL, JWT authentication, Swagger
 - **Frontend** — Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS
-- **Tests** — 230 xUnit tests covering business rules, authorisation and the submission workflow
+- **Tests** — 247 xUnit tests covering business rules, authorisation, the submission workflow and the upload endpoints over HTTP
 
 ---
 
@@ -64,11 +64,10 @@ The demo dataset is inserted automatically the first time the API starts.
 | Role | Email | Password |
 | --- | --- | --- |
 | Admin | `admin@school.edu` | `Admin@123` |
-| Teacher | `nazmul.hasan@school.edu` | `Teacher@123` |
-| Teacher | `farhana.akter@school.edu` | `Teacher@123` |
+| Teacher | `habib.wahid@school.edu` | `Habib@123` |
 | Student | `rafi.ahmed@school.edu` | `Student@123` |
-| Student | `tasnim.jahan@school.edu` | `Student@123` |
-| Student | `imran.kabir@school.edu` | `Student@123` |
+
+
 
 The two teachers own **different** classes, and the students are enrolled in
 **different** courses, so the role scoping is visible immediately: sign in as one
@@ -192,10 +191,17 @@ psql -d assignment_system -f database/02_seed.sql
 | File | Contents |
 | --- | --- |
 | `database/01_schema.sql` | Every table, index and foreign key. Generated from the EF migration with `--idempotent`, so it also records itself in `__EFMigrationsHistory` and the API will not try to re-apply it. |
-| `database/02_seed.sql` | The same demo dataset the application seeder inserts, using the same fixed ids. Deadlines are relative to `now()`, so the data always contains a mix of open, overdue and closed work. |
+| `database/02_seed.sql` | The same demo dataset the application seeder inserts, using the same fixed ids. Deadlines are relative to `now()`, so the data always contains a mix of open, overdue and closed work. No submissions — see below. |
 
-Both scripts were executed against PostgreSQL 17 during development, including a
-re-run to confirm they are idempotent.
+**The demo data contains no submissions.** A submission is a PDF a student uploaded,
+and seeding one would mean committing an invented document to the repository. So the
+dataset stops at assignments waiting to be answered: sign in as a student, open a
+published assignment and upload a real PDF. Grading, returning for revision and the
+late flag are all reachable from there.
+
+Both scripts were executed against PostgreSQL 17 during development and re-verified
+against PostgreSQL 18 after the move to PDF submissions, each time run twice to
+confirm they are idempotent.
 
 ---
 
@@ -206,23 +212,24 @@ cd backend
 dotnet test
 ```
 
-**230 tests, all passing.** They are grouped by what they protect:
+**247 tests, all passing.** They are grouped by what they protect:
 
 | Area | Tests | What they cover |
 | --- | --- | --- |
-| `Domain/AssignmentRulesTests` | 21 | Publish, unpublish, close, edit and delete rules on the entity itself |
-| `Domain/SubmissionRulesTests` | 20 | On-time vs late, revision limits, grading bounds, return-for-revision |
+| `Domain/AssignmentRulesTests` | 20 | Publish, unpublish, close, edit and delete rules on the entity itself |
+| `Domain/SubmissionRulesTests` | 19 | On-time vs late, revision limits, grading bounds, return-for-revision |
 | `Services/AssignmentAuthorizationTests` | 16 | Who can see and change which assignment |
-| `Services/AssignmentWorkflowTests` | 16 | Creating, publishing, retiring, filtering, paging |
-| `Services/SubmissionWorkflowTests` | 20 | The full submission workflow and its scoping |
-| `Services/UserAndAcademicRuleTests` | 17 | Account, course, enrollment and teacher-assignment rules |
-| `Security/EndpointAuthorizationTests` | 68 | Reads `[Authorize]` back off every controller action |
-| `Security/AuthenticationTests` | 10 | Login, password change, token claims |
+| `Services/AssignmentWorkflowTests` | 15 | Creating, publishing, retiring, filtering, paging |
+| `Services/SubmissionWorkflowTests` | 29 | The full submission workflow, PDF validation, download scoping |
+| `Services/UserAndAcademicRuleTests` | 18 | Account, course, enrollment and teacher-assignment rules |
+| `Api/SubmissionUploadEndpointTests` | 7 | The upload and download endpoints over real HTTP, on a live host |
+| `Security/EndpointAuthorizationTests` | 75 | Reads `[Authorize]` back off every controller action |
+| `Security/AuthenticationTests` | 9 | Login, password change, token claims |
 | `Security/PasswordHashingTests` | 8 | PBKDF2 hashing, salting and malformed input |
-| `Persistence/QueryTranslationTests` | 14 | Every list query compiles to SQL on a relational provider |
+| `Persistence/QueryTranslationTests` | 15 | Every list query compiles to SQL on a relational provider |
 | `Persistence/PostgresConnectionStringTests` | 16 | Converting the URI form hosted providers issue into what Npgsql accepts |
 
-Two of those deserve a note, because they exist to catch mistakes that are otherwise
+Three of those deserve a note, because they exist to catch mistakes that are otherwise
 invisible until runtime:
 
 **`EndpointAuthorizationTests`** reads the `[Authorize]` attributes off the
@@ -237,12 +244,25 @@ development: two queries ordered their results *after* projecting to a DTO, whic
 passed in memory and threw `InvalidOperationException` against PostgreSQL. These tests
 force each query to compile to real SQL.
 
+**`SubmissionUploadEndpointTests`** boots the actual API in memory and talks to it over
+HTTP. The service tests call services directly, which leaves everything between the
+wire and the service untested — and a submission is `multipart/form-data`, not JSON, so
+that gap covers the binding that turns a browser's upload into an `IFormFile`. The
+round trip is asserted byte for byte: a PDF that gains or loses a single byte in
+transit is a PDF that no longer opens.
+
 ### End-to-end verification
 
-Beyond the unit tests, the running API was exercised against a real PostgreSQL 17
+Beyond the unit tests, the running API was exercised against a real PostgreSQL
 instance — authentication, role enforcement across all three roles, the submission
 and grading workflow, and the assignment lifecycle — covering 56 request/response
 assertions.
+
+The PDF upload path was verified the same way against PostgreSQL 18: a real PDF
+uploaded over `multipart/form-data`, downloaded again, and compared byte for byte;
+a renamed non-PDF rejected with a per-field message; the file returning 404 to another
+student and 401 to an anonymous caller while the owning teacher receives it; and
+deleting the submission removing its `submission_files` row by cascade.
 
 ---
 
@@ -363,6 +383,9 @@ from scratch.
 - Create accounts for any role; deactivate accounts; reset passwords
 - Manage the subject catalogue and the course (class) list
 - Add subjects to a course and assign the teacher responsible for each pairing
+- Staff every class from one screen (**Teaching**), which flags teachers who have no
+  class yet and subjects nobody is responsible for — a teacher cannot set any work
+  until they are named against a class and subject
 - Enrol and remove students
 - See every assignment and submission in the system
 
@@ -378,8 +401,8 @@ from scratch.
 
 - See published and closed assignments for the courses they are enrolled in — never a draft
 - Filter to work they have not yet handed in
-- Submit an answer, with an optional attachment link
-- Revise it before the deadline, if the assignment allows revision
+- Submit their work as a PDF (up to 10 MB)
+- Replace it before the deadline, if the assignment allows revision
 - See their status, marks and the teacher's feedback
 
 All three can change their own password.
@@ -405,28 +428,29 @@ These are enforced in the domain layer and covered by tests.
 
 9. Only an enrolled student may submit, and only to a published assignment.
 10. Submitting after the deadline is rejected unless the assignment allows late work, in which case it is accepted and flagged **Late**.
-11. One submission per student per assignment — enforced by a unique index as well as in code. Posting again revises the existing row and increments its attempt count.
+11. One submission per student per assignment — enforced by a unique index as well as in code. Posting again replaces the existing file and increments its attempt count.
 12. A submission can be revised only while the assignment is open **and** allows revision.
-13. Graded work is frozen; the teacher must return it before it can change.
-14. Work returned for revision can be resubmitted **even after the deadline** — the teacher asked for it.
-15. Marks must fall between zero and the assignment's maximum.
-16. Returning a graded submission clears its marks, so the next attempt is graded fresh.
+13. Every submission is a PDF of at most 10 MB. The file's *bytes* must begin with `%PDF-`, so a renamed document is rejected rather than reaching a teacher who cannot open it. A revision overwrites the stored file.
+14. Graded work is frozen; the teacher must return it before it can change.
+15. Work returned for revision can be resubmitted **even after the deadline** — the teacher asked for it.
+16. Marks must fall between zero and the assignment's maximum.
+17. Returning a graded submission clears its marks, so the next attempt is graded fresh.
 
 **Authorisation**
 
-17. A teacher may only read and manage assignments for course subjects assigned to them.
-18. A teacher may only grade submissions belonging to their own assignments.
-19. A student may only read their own submissions, and cannot filter the list to another student.
-20. Students are never shown class-wide submission counts.
-21. An admin cannot deactivate their own account, and the last active administrator cannot be deactivated.
+18. A teacher may only read and manage assignments for course subjects assigned to them.
+19. A teacher may only grade submissions belonging to their own assignments.
+20. A student may only read their own submissions, and cannot filter the list to another student.
+21. Students are never shown class-wide submission counts.
+22. An admin cannot deactivate their own account, and the last active administrator cannot be deactivated.
 
 **Data integrity**
 
-22. Accounts are deactivated, never deleted — assignments, submissions and marks reference them.
-23. A subject that is taught somewhere cannot be deleted.
-24. A course with assignments cannot be deleted.
-25. A student who has submitted work cannot be removed from that course.
-26. A course subject with assignments cannot be left without a teacher.
+23. Accounts are deactivated, never deleted — assignments, submissions and marks reference them.
+24. A subject that is taught somewhere cannot be deleted.
+25. A course with assignments cannot be deleted.
+26. A student who has submitted work cannot be removed from that course.
+27. A course subject with assignments cannot be left without a teacher.
 
 ---
 
@@ -534,16 +558,23 @@ later without locking anyone out. Verification is a fixed-time comparison.
         │   ┌──────────────┐         │     ┌────────────────────┐
         ├──▶│ student_id   │         └────▶│ assignment_id      │
         │   │ course_id    │               │ student_id      ───┼──▶ users
-        │   └──────────────┘               │ content            │
-        │     unique                       │ attachment_url     │
-        │     (course_id, student_id)      │ status             │  Submitted | Late
+        │   └──────────────┘               │ file_name          │
+        │     unique                       │ content_type       │
+        │     (course_id, student_id)      │ file_size_bytes    │
+        │                                  │ status             │  Submitted | Late
         │                                  │ is_late            │  Graded | Returned
         │                                  │ attempt_count      │
         │                                  │ marks, feedback    │
         └─────────────────────────────────▶│ graded_by_teacher  │
-                                           └────────────────────┘
-                                             unique
+                                           └─────────┬──────────┘
+                                             unique  │ 1:1
                                              (assignment_id, student_id)
+                                                     ▼
+                                           ┌────────────────────┐
+                                           │  submission_files  │
+                                           │ submission_id (PK) │
+                                           │ content   (bytea)  │
+                                           └────────────────────┘
 ```
 
 **Why one `users` table for all three roles.** Admin, teacher and student share the
@@ -560,9 +591,10 @@ Role-specific data lives in the link tables — a teacher appears in
 | `course_subjects` → `users` (teacher) | Restrict | A teacher with classes must not be deletable |
 | `assignments` → `course_subjects` | Cascade | An assignment is meaningless without its pairing |
 | `assignments` → `users` (author) | Restrict | Preserve the audit trail |
-| `submissions` → `assignments` | Cascade | Answers belong to their assignment |
+| `submissions` → `assignments` | Cascade | Submitted work belongs to its assignment |
 | `submissions` → `users` (student) | Cascade | A student's work goes with them |
 | `submissions` → `users` (grader) | Set null | Keep the marks, forget who gave them |
+| `submission_files` → `submissions` | Cascade | A withdrawn submission must not leave its PDF behind |
 
 In practice these rarely fire, because the service layer refuses the delete first with
 a clear message. They are the backstop.
@@ -642,8 +674,9 @@ health probes below. Full interactive documentation is at `/swagger`.
 | --- | --- | --- |
 | GET | `/api/submissions` *(filters: assignment, course, student, status; paged)* | any — scoped by role |
 | GET | `/api/submissions/{id}` | any — scoped by role |
-| POST | `/api/submissions` | Student |
-| PUT | `/api/submissions/{id}` | Student |
+| GET | `/api/submissions/{id}/file` *(the PDF itself)* | any — scoped by role |
+| POST | `/api/submissions` *(`multipart/form-data`: `assignmentId`, `file`)* | Student |
+| PUT | `/api/submissions/{id}` *(`multipart/form-data`: `file`)* | Student |
 | POST | `/api/submissions/{id}/grade` | Admin, Teacher |
 | PUT | `/api/submissions/{id}/status` | Admin, Teacher |
 
@@ -710,7 +743,7 @@ AssignmentSystem/
         │   └── (app)/               Signed-in routes, sharing the app shell
         │       ├── assignments/     List, detail, new, edit
         │       ├── submissions/
-        │       ├── admin/           Users, courses, subjects
+        │       ├── admin/           Users, courses, subjects, teaching
         │       └── settings/
         ├── components/              App shell, UI primitives, feature panels
         └── lib/                     API client, auth context, formatting, types
@@ -731,14 +764,24 @@ and the reasoning is recorded here as requested.
    many-to-many between `course_subjects` and teachers; the single-teacher rule keeps
    ownership unambiguous, which is what the authorisation rules depend on.
 
-3. **A student has one submission per assignment.** Re-submitting overwrites the answer
-   and increments `attempt_count` rather than creating a second row, so "the student's
-   answer" is never ambiguous when grading. The history of previous attempts is not
+3. **A student has one submission per assignment.** Re-submitting replaces the PDF and
+   increments `attempt_count` rather than creating a second row, so "the student's
+   work" is never ambiguous when grading. The history of previous attempts is not
    retained — see limitations.
 
-4. **Attachments are links, not uploads.** File storage (size limits, virus scanning,
-   object storage, signed URLs) is a project in itself and outside the brief, so a
-   submission carries an optional absolute `http(s)` URL instead.
+4. **A submission is a PDF, and the PDF lives in the database.** One format keeps
+   grading predictable: every teacher can open every submission without hunting for an
+   application, and the file renders inline in the browser. It is accepted only if the
+   bytes really start with `%PDF-`, so renaming a `.docx` does not get past it, and it
+   is capped at 10 MB.
+
+   The bytes go in a `submission_files` table (`bytea`), one row per submission, rather
+   than in object storage. The API runs on a free tier with an ephemeral filesystem, so
+   local disk would lose every upload on restart, and S3 would add a credential and a
+   second failure mode for a dataset measured in megabytes. Keeping the blob in its own
+   table — never joined by the list and grading queries — means a page of submissions
+   still costs kilobytes; only `GET /api/submissions/{id}/file` ever reads a file.
+   Object storage is the right answer at a scale this project does not have.
 
 5. **A role cannot be changed after an account is created.** Moving an account between
    roles would strand its enrollments or teaching assignments. Deactivate and create a
@@ -788,10 +831,17 @@ Stated plainly rather than hidden.
   guards exist so a mistyped URL shows a clear message instead of a wall of 403s. Role
   enforcement is *only* trustworthy because it is server-side.
 
-- **No submission history.** A revision overwrites the previous answer. Keeping every
-  attempt would mean a separate `submission_attempts` table.
+- **No submission history.** A revision replaces the previous PDF. Keeping every attempt
+  would mean a separate `submission_attempts` table and a file row per attempt.
 
-- **No file uploads.** Attachments are links, per assumption 4.
+- **Uploads are not virus-scanned.** The bytes are checked for being a PDF and nothing
+  more. A real deployment would pass them through a scanner before storing them, and
+  would serve them from a separate origin so a malicious file cannot reach the app's
+  cookies. Here they are stored as received and served with a fixed `application/pdf`
+  content type, never the one the uploader claimed.
+
+- **PDFs are stored in PostgreSQL, not object storage.** Fine at this size, per
+  assumption 4; at real volume it would bloat backups and every restore.
 
 - **No notifications.** No email or in-app alert when work is set, submitted or graded.
 

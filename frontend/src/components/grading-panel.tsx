@@ -2,6 +2,11 @@
 
 import { useState } from "react";
 import {
+  DownloadSubmissionButton,
+  SubmissionFileSummary,
+  SubmissionFileViewer,
+} from "@/components/submission-file";
+import {
   Alert,
   Badge,
   Button,
@@ -146,6 +151,9 @@ function SubmissionRow({
           <p className="mt-0.5 text-xs text-slate-500">
             {submission.studentEmail} &middot; handed in {formatDateTime(submission.submittedAt)}
           </p>
+          <div className="mt-1.5">
+            <SubmissionFileSummary submission={submission} />
+          </div>
         </div>
 
         <div className="flex items-center gap-2">
@@ -157,6 +165,7 @@ function SubmissionRow({
           <Button variant="ghost" onClick={() => setExpanded((open) => !open)}>
             {expanded ? "Hide" : "Read"}
           </Button>
+          <DownloadSubmissionButton submission={submission} variant="ghost" />
           <Button variant="secondary" onClick={onGrade} disabled={busy}>
             {submission.status === "Graded" ? "Re-grade" : "Grade"}
           </Button>
@@ -177,17 +186,9 @@ function SubmissionRow({
 
       {expanded && (
         <div className="rounded-md bg-slate-50 px-4 py-3">
-          <p className="whitespace-pre-wrap text-sm text-slate-700">{submission.content}</p>
-          {submission.attachmentUrl && (
-            <a
-              href={submission.attachmentUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="mt-3 inline-block text-sm font-medium text-slate-900 underline"
-            >
-              Open attachment
-            </a>
-          )}
+          {/* Mounted only once opened, so a page of submissions does not fetch every
+              PDF the teacher has not asked to read. */}
+          <SubmissionFileViewer submission={submission} />
           {submission.feedback && (
             <p className="mt-3 border-t border-slate-200 pt-3 text-sm text-slate-600">
               <span className="font-medium text-slate-800">Your feedback: </span>
@@ -252,8 +253,14 @@ function GradeDialog({
       <div className="space-y-4">
         {failure && <Alert>{failure}</Alert>}
 
-        <div className="max-h-48 overflow-y-auto rounded-md bg-slate-50 px-4 py-3">
-          <p className="whitespace-pre-wrap text-sm text-slate-700">{submission.content}</p>
+        {/* The work being marked, alongside the marks, so the teacher does not have to
+            close the dialog to check something. */}
+        <div className="rounded-md bg-slate-50 p-3">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <SubmissionFileSummary submission={submission} />
+            <DownloadSubmissionButton submission={submission} variant="ghost" />
+          </div>
+          <SubmissionFileViewer submission={submission} className="h-64" />
         </div>
 
         <Field label={`Marks (out of ${maxMarks})`} htmlFor="marks" error={marksError}>

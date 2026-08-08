@@ -161,8 +161,9 @@ namespace AssignmentSystem.Infrastructure.Persistence.Migrations
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
                     AssignmentId = table.Column<Guid>(type: "uuid", nullable: false),
                     StudentId = table.Column<Guid>(type: "uuid", nullable: false),
-                    Content = table.Column<string>(type: "character varying(20000)", maxLength: 20000, nullable: false),
-                    AttachmentUrl = table.Column<string>(type: "character varying(2000)", maxLength: 2000, nullable: true),
+                    FileName = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: false),
+                    ContentType = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
+                    FileSizeBytes = table.Column<int>(type: "integer", nullable: false),
                     Status = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
                     IsLate = table.Column<bool>(type: "boolean", nullable: false),
                     AttemptCount = table.Column<int>(type: "integer", nullable: false, defaultValue: 1),
@@ -192,6 +193,24 @@ namespace AssignmentSystem.Infrastructure.Persistence.Migrations
                         name: "FK_submissions_users_StudentId",
                         column: x => x.StudentId,
                         principalTable: "users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "submission_files",
+                columns: table => new
+                {
+                    SubmissionId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Content = table.Column<byte[]>(type: "bytea", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_submission_files", x => x.SubmissionId);
+                    table.ForeignKey(
+                        name: "FK_submission_files_submissions_SubmissionId",
+                        column: x => x.SubmissionId,
+                        principalTable: "submissions",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
@@ -293,6 +312,9 @@ namespace AssignmentSystem.Infrastructure.Persistence.Migrations
         {
             migrationBuilder.DropTable(
                 name: "enrollments");
+
+            migrationBuilder.DropTable(
+                name: "submission_files");
 
             migrationBuilder.DropTable(
                 name: "submissions");

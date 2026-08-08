@@ -8,7 +8,7 @@ START TRANSACTION;
 
 DO $EF$
 BEGIN
-    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260805072040_InitialCreate') THEN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260808054153_InitialCreate') THEN
     CREATE TABLE courses (
         "Id" uuid NOT NULL,
         "Name" character varying(150) NOT NULL,
@@ -23,7 +23,7 @@ END $EF$;
 
 DO $EF$
 BEGIN
-    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260805072040_InitialCreate') THEN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260808054153_InitialCreate') THEN
     CREATE TABLE subjects (
         "Id" uuid NOT NULL,
         "Name" character varying(150) NOT NULL,
@@ -37,7 +37,7 @@ END $EF$;
 
 DO $EF$
 BEGIN
-    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260805072040_InitialCreate') THEN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260808054153_InitialCreate') THEN
     CREATE TABLE users (
         "Id" uuid NOT NULL,
         "FullName" character varying(150) NOT NULL,
@@ -54,7 +54,7 @@ END $EF$;
 
 DO $EF$
 BEGIN
-    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260805072040_InitialCreate') THEN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260808054153_InitialCreate') THEN
     CREATE TABLE course_subjects (
         "Id" uuid NOT NULL,
         "CourseId" uuid NOT NULL,
@@ -71,7 +71,7 @@ END $EF$;
 
 DO $EF$
 BEGIN
-    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260805072040_InitialCreate') THEN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260808054153_InitialCreate') THEN
     CREATE TABLE enrollments (
         "Id" uuid NOT NULL,
         "CourseId" uuid NOT NULL,
@@ -86,7 +86,7 @@ END $EF$;
 
 DO $EF$
 BEGIN
-    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260805072040_InitialCreate') THEN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260808054153_InitialCreate') THEN
     CREATE TABLE assignments (
         "Id" uuid NOT NULL,
         "CourseSubjectId" uuid NOT NULL,
@@ -110,13 +110,14 @@ END $EF$;
 
 DO $EF$
 BEGIN
-    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260805072040_InitialCreate') THEN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260808054153_InitialCreate') THEN
     CREATE TABLE submissions (
         "Id" uuid NOT NULL,
         "AssignmentId" uuid NOT NULL,
         "StudentId" uuid NOT NULL,
-        "Content" character varying(20000) NOT NULL,
-        "AttachmentUrl" character varying(2000),
+        "FileName" character varying(255) NOT NULL,
+        "ContentType" character varying(100) NOT NULL,
+        "FileSizeBytes" integer NOT NULL,
         "Status" character varying(20) NOT NULL,
         "IsLate" boolean NOT NULL,
         "AttemptCount" integer NOT NULL DEFAULT 1,
@@ -136,128 +137,140 @@ END $EF$;
 
 DO $EF$
 BEGIN
-    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260805072040_InitialCreate') THEN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260808054153_InitialCreate') THEN
+    CREATE TABLE submission_files (
+        "SubmissionId" uuid NOT NULL,
+        "Content" bytea NOT NULL,
+        CONSTRAINT "PK_submission_files" PRIMARY KEY ("SubmissionId"),
+        CONSTRAINT "FK_submission_files_submissions_SubmissionId" FOREIGN KEY ("SubmissionId") REFERENCES submissions ("Id") ON DELETE CASCADE
+    );
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260808054153_InitialCreate') THEN
     CREATE INDEX "IX_assignments_CourseSubjectId" ON assignments ("CourseSubjectId");
     END IF;
 END $EF$;
 
 DO $EF$
 BEGIN
-    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260805072040_InitialCreate') THEN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260808054153_InitialCreate') THEN
     CREATE INDEX "IX_assignments_CreatedByTeacherId" ON assignments ("CreatedByTeacherId");
     END IF;
 END $EF$;
 
 DO $EF$
 BEGIN
-    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260805072040_InitialCreate') THEN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260808054153_InitialCreate') THEN
     CREATE INDEX "IX_assignments_Deadline" ON assignments ("Deadline");
     END IF;
 END $EF$;
 
 DO $EF$
 BEGIN
-    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260805072040_InitialCreate') THEN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260808054153_InitialCreate') THEN
     CREATE INDEX "IX_assignments_Status" ON assignments ("Status");
     END IF;
 END $EF$;
 
 DO $EF$
 BEGIN
-    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260805072040_InitialCreate') THEN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260808054153_InitialCreate') THEN
     CREATE UNIQUE INDEX "IX_course_subjects_CourseId_SubjectId" ON course_subjects ("CourseId", "SubjectId");
     END IF;
 END $EF$;
 
 DO $EF$
 BEGIN
-    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260805072040_InitialCreate') THEN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260808054153_InitialCreate') THEN
     CREATE INDEX "IX_course_subjects_SubjectId" ON course_subjects ("SubjectId");
     END IF;
 END $EF$;
 
 DO $EF$
 BEGIN
-    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260805072040_InitialCreate') THEN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260808054153_InitialCreate') THEN
     CREATE INDEX "IX_course_subjects_TeacherId" ON course_subjects ("TeacherId");
     END IF;
 END $EF$;
 
 DO $EF$
 BEGIN
-    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260805072040_InitialCreate') THEN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260808054153_InitialCreate') THEN
     CREATE UNIQUE INDEX "IX_courses_Code" ON courses ("Code");
     END IF;
 END $EF$;
 
 DO $EF$
 BEGIN
-    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260805072040_InitialCreate') THEN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260808054153_InitialCreate') THEN
     CREATE UNIQUE INDEX "IX_enrollments_CourseId_StudentId" ON enrollments ("CourseId", "StudentId");
     END IF;
 END $EF$;
 
 DO $EF$
 BEGIN
-    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260805072040_InitialCreate') THEN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260808054153_InitialCreate') THEN
     CREATE INDEX "IX_enrollments_StudentId" ON enrollments ("StudentId");
     END IF;
 END $EF$;
 
 DO $EF$
 BEGIN
-    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260805072040_InitialCreate') THEN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260808054153_InitialCreate') THEN
     CREATE UNIQUE INDEX "IX_subjects_Code" ON subjects ("Code");
     END IF;
 END $EF$;
 
 DO $EF$
 BEGIN
-    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260805072040_InitialCreate') THEN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260808054153_InitialCreate') THEN
     CREATE UNIQUE INDEX "IX_submissions_AssignmentId_StudentId" ON submissions ("AssignmentId", "StudentId");
     END IF;
 END $EF$;
 
 DO $EF$
 BEGIN
-    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260805072040_InitialCreate') THEN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260808054153_InitialCreate') THEN
     CREATE INDEX "IX_submissions_GradedByTeacherId" ON submissions ("GradedByTeacherId");
     END IF;
 END $EF$;
 
 DO $EF$
 BEGIN
-    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260805072040_InitialCreate') THEN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260808054153_InitialCreate') THEN
     CREATE INDEX "IX_submissions_Status" ON submissions ("Status");
     END IF;
 END $EF$;
 
 DO $EF$
 BEGIN
-    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260805072040_InitialCreate') THEN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260808054153_InitialCreate') THEN
     CREATE INDEX "IX_submissions_StudentId" ON submissions ("StudentId");
     END IF;
 END $EF$;
 
 DO $EF$
 BEGIN
-    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260805072040_InitialCreate') THEN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260808054153_InitialCreate') THEN
     CREATE UNIQUE INDEX "IX_users_Email" ON users ("Email");
     END IF;
 END $EF$;
 
 DO $EF$
 BEGIN
-    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260805072040_InitialCreate') THEN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260808054153_InitialCreate') THEN
     CREATE INDEX "IX_users_Role" ON users ("Role");
     END IF;
 END $EF$;
 
 DO $EF$
 BEGIN
-    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260805072040_InitialCreate') THEN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260808054153_InitialCreate') THEN
     INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
-    VALUES ('20260805072040_InitialCreate', '10.0.10');
+    VALUES ('20260808054153_InitialCreate', '10.0.10');
     END IF;
 END $EF$;
 COMMIT;

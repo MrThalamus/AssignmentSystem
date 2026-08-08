@@ -122,8 +122,10 @@ export interface Submission {
   studentId: string;
   studentName: string;
   studentEmail: string;
-  content: string;
-  attachmentUrl: string | null;
+  /** The name of the uploaded PDF. Its bytes are fetched separately, on demand. */
+  fileName: string;
+  contentType: string;
+  fileSizeBytes: number;
   status: SubmissionStatus;
   isLate: boolean;
   attemptCount: number;

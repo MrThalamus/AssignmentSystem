@@ -1,3 +1,4 @@
+using AssignmentSystem.Application.Features.Submissions;
 using AssignmentSystem.Domain.Exceptions;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
@@ -30,7 +31,11 @@ public class GlobalExceptionHandler : IExceptionHandler
                 problem.Status, httpContext.Request.Method, httpContext.Request.Path, problem.Detail);
 
         httpContext.Response.StatusCode = problem.Status ?? StatusCodes.Status500InternalServerError;
-        await httpContext.Response.WriteAsJsonAsync(problem, cancellationToken);
+
+        // Serialised against the runtime type on purpose. The generic overload would use
+        // the declared ProblemDetails type and silently drop the per-field "errors" of a
+        // ValidationProblemDetails, leaving a form with nothing to attach to its inputs.
+        await httpContext.Response.WriteAsJsonAsync(problem, problem.GetType(), cancellationToken);
 
         return true;
     }
@@ -65,6 +70,23 @@ public class GlobalExceptionHandler : IExceptionHandler
                 Title = "Request conflicts with the current state.",
                 Detail = exception.Message,
                 Status = StatusCodes.Status409Conflict
+            },
+
+            // Kestrel aborts an upload that exceeds the configured limit before any
+            // controller code runs, so the size rule never gets to phrase this itself.
+            BadHttpRequestException { StatusCode: StatusCodes.Status413PayloadTooLarge } =>
+                new ProblemDetails
+                {
+                    Title = "The upload is too large.",
+                    Detail = $"The file must be no larger than {SubmissionFileRules.MaxSizeDescription}.",
+                    Status = StatusCodes.Status413PayloadTooLarge
+                },
+
+            BadHttpRequestException badRequest => new ProblemDetails
+            {
+                Title = "The request could not be read.",
+                Detail = badRequest.Message,
+                Status = StatusCodes.Status400BadRequest
             },
 
             // A rule the domain refused: the request was well-formed but not allowed

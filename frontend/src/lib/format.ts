@@ -51,6 +51,16 @@ export function toDateTimeLocalValue(iso: string) {
 /** The inverse: a local wall-clock value back to a UTC instant for the API. */
 export const fromDateTimeLocalValue = (value: string) => new Date(value).toISOString();
 
+/** "412 KB" / "2.4 MB" - enough for a student to sanity-check what they attached. */
+export function formatFileSize(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+
+  const kilobytes = bytes / 1024;
+  if (kilobytes < 1024) return `${Math.round(kilobytes)} KB`;
+
+  return `${(kilobytes / 1024).toFixed(1)} MB`;
+}
+
 // ------------------------------------------------------------------- badges
 
 type BadgeTone = "neutral" | "info" | "success" | "warning" | "danger";

@@ -11,6 +11,7 @@ public interface ISubmissionService
 {
     Task<PagedResult<SubmissionDto>> ListAsync(SubmissionListQuery query, CancellationToken ct = default);
     Task<SubmissionDto> GetAsync(Guid id, CancellationToken ct = default);
+    Task<SubmissionFileDto> DownloadAsync(Guid id, CancellationToken ct = default);
     Task<SubmissionDto> SubmitAsync(CreateSubmissionRequest request, CancellationToken ct = default);
     Task<SubmissionDto> UpdateAsync(Guid id, UpdateSubmissionRequest request, CancellationToken ct = default);
     Task<SubmissionDto> GradeAsync(Guid id, GradeSubmissionRequest request, CancellationToken ct = default);
@@ -70,12 +71,33 @@ public class SubmissionService : ISubmissionService
             .FirstOrDefaultAsync(ct)
         ?? throw NotFoundException.For("Submission", id);
 
+    /// <summary>
+    /// Reads the stored PDF. Goes through the same role scope as every other read, so a
+    /// student cannot pull down a classmate's work by guessing at an id, and the bytes
+    /// are only ever loaded here rather than on every list query.
+    /// </summary>
+    public async Task<SubmissionFileDto> DownloadAsync(Guid id, CancellationToken ct = default)
+    {
+        var file = await ApplyRoleScope(_db.Submissions.AsNoTracking())
+            .Where(s => s.Id == id && s.File != null)
+            .Select(s => new SubmissionFileDto(s.FileName, s.ContentType, s.File!.Content))
+            .FirstOrDefaultAsync(ct);
+
+        // Also covers the submission existing but its bytes not: the caller asked for a
+        // file, and "there is no file" is the same answer either way.
+        return file ?? throw NotFoundException.For("Submission", id);
+    }
+
     // -------------------------------------------------------- student writes
 
     public async Task<SubmissionDto> SubmitAsync(
         CreateSubmissionRequest request, CancellationToken ct = default)
     {
         var studentId = RequireStudent();
+
+        // Checked before anything is looked up: an unusable upload should be reported
+        // as such rather than as whatever the assignment lookup happens to say.
+        var document = SubmissionFileRules.Accept(request.File);
 
         var assignment = await _db.Assignments
                              .Include(a => a.CourseSubject)
@@ -88,19 +110,19 @@ public class SubmissionService : ISubmissionService
             throw NotFoundException.For("Assignment", request.AssignmentId);
 
         var existing = await _db.Submissions
+            .Include(s => s.File)
             .FirstOrDefaultAsync(s => s.AssignmentId == assignment.Id && s.StudentId == studentId, ct);
 
         // One submission per student per assignment: a second POST revises the first
         // rather than creating a duplicate the teacher would have to reconcile.
         if (existing is not null)
         {
-            existing.UpdateAnswer(assignment, request.Content.Trim(), Normalise(request.AttachmentUrl), _clock.UtcNow);
+            existing.UpdateAnswer(assignment, document, _clock.UtcNow);
             await _db.SaveChangesAsync(ct);
             return await GetAsync(existing.Id, ct);
         }
 
-        var submission = Submission.Create(
-            assignment, studentId, request.Content.Trim(), Normalise(request.AttachmentUrl), _clock.UtcNow);
+        var submission = Submission.Create(assignment, studentId, document, _clock.UtcNow);
 
         _db.Submissions.Add(submission);
         await _db.SaveChangesAsync(ct);
@@ -112,17 +134,18 @@ public class SubmissionService : ISubmissionService
         Guid id, UpdateSubmissionRequest request, CancellationToken ct = default)
     {
         var studentId = RequireStudent();
+        var document = SubmissionFileRules.Accept(request.File);
 
         var submission = await _db.Submissions
                              .Include(s => s.Assignment)
+                             .Include(s => s.File)
                              .FirstOrDefaultAsync(s => s.Id == id, ct)
                          ?? throw NotFoundException.For("Submission", id);
 
         if (submission.StudentId != studentId)
             throw new ForbiddenException("You can only update your own submission.");
 
-        submission.UpdateAnswer(
-            submission.Assignment, request.Content.Trim(), Normalise(request.AttachmentUrl), _clock.UtcNow);
+        submission.UpdateAnswer(submission.Assignment, document, _clock.UtcNow);
 
         await _db.SaveChangesAsync(ct);
 
@@ -226,9 +249,10 @@ public class SubmissionService : ISubmissionService
         _db.Enrollments.AnyAsync(
             e => e.StudentId == studentId && e.CourseId == assignment.CourseSubject.CourseId, ct);
 
-    private static string? Normalise(string? value) =>
-        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
-
+    /// <summary>
+    /// Deliberately selects the file's name and size but never its bytes, so a page of
+    /// submissions costs a few kilobytes rather than a few hundred megabytes.
+    /// </summary>
     private static IQueryable<SubmissionDto> Project(IQueryable<Submission> query) =>
         query.Select(s => new SubmissionDto(
             s.Id,
@@ -239,8 +263,9 @@ public class SubmissionService : ISubmissionService
             s.StudentId,
             s.Student.FullName,
             s.Student.Email,
-            s.Content,
-            s.AttachmentUrl,
+            s.FileName,
+            s.ContentType,
+            s.FileSizeBytes,
             s.Status,
             s.IsLate,
             s.AttemptCount,

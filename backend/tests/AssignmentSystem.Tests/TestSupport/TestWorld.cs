@@ -4,6 +4,7 @@ using AssignmentSystem.Application.Features.Submissions;
 using AssignmentSystem.Application.Features.Users;
 using AssignmentSystem.Domain.Entities;
 using AssignmentSystem.Domain.Enums;
+using AssignmentSystem.Domain.ValueObjects;
 using AssignmentSystem.Infrastructure.Persistence;
 using AssignmentSystem.Infrastructure.Security;
 using Microsoft.EntityFrameworkCore;
@@ -111,7 +112,10 @@ public sealed class TestWorld : IDisposable
         {
             AssignmentId = assignmentId,
             StudentId = studentId,
-            Content = "Existing answer.",
+            FileName = "existing-answer.pdf",
+            ContentType = SubmittedDocument.PdfContentType,
+            FileSizeBytes = TestPdf.Bytes().Length,
+            File = new SubmissionFile { Content = TestPdf.Bytes() },
             Status = status,
             IsLate = isLate,
             AttemptCount = 1,

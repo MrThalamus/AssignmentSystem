@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import Link from "next/link";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -85,6 +86,20 @@ export default function UsersPage() {
         description="Accounts for administrators, teachers and students."
         actions={<Button onClick={() => setCreating(true)}>Add user</Button>}
       />
+
+      {/* Creating a teacher is only half the job - an account with no class attached
+          cannot set any work, and this is the page an administrator is on when they
+          make one, so the next step is named here rather than left to be discovered. */}
+      <div className="mb-4">
+        <Alert tone="info">
+          A new teacher cannot create assignments until they are named against a class and
+          subject.{" "}
+          <Link href="/admin/teaching" className="font-medium underline">
+            Assign teaching
+          </Link>
+          .
+        </Alert>
+      </div>
 
       {actionError && (
         <div className="mb-4">

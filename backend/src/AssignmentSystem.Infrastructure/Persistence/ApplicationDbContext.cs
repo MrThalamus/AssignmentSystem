@@ -16,6 +16,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<Enrollment> Enrollments => Set<Enrollment>();
     public DbSet<Assignment> Assignments => Set<Assignment>();
     public DbSet<Submission> Submissions => Set<Submission>();
+    public DbSet<SubmissionFile> SubmissionFiles => Set<SubmissionFile>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

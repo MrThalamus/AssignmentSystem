@@ -18,6 +18,7 @@ const navigation: NavItem[] = [
   { href: "/submissions", label: "Submissions", roles: ["Teacher", "Student"] },
   { href: "/admin/users", label: "Users", roles: ["Admin"] },
   { href: "/admin/courses", label: "Courses", roles: ["Admin"] },
+  { href: "/admin/teaching", label: "Teaching", roles: ["Admin"] },
   { href: "/admin/subjects", label: "Subjects", roles: ["Admin"] },
   { href: "/settings", label: "Settings", roles: ["Admin", "Teacher", "Student"] },
 ];

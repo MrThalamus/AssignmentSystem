@@ -185,7 +185,10 @@ async function request<T>(
     {
       ...init,
       headers: {
-        "Content-Type": "application/json",
+        // An upload's Content-Type has to be left to the browser: it carries the
+        // multipart boundary, and a hand-written header would omit it, leaving the
+        // server unable to find where one part ends and the next begins.
+        ...(init.body instanceof FormData ? {} : { "Content-Type": "application/json" }),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...init.headers,
       },
@@ -206,6 +209,34 @@ async function request<T>(
   }
 
   return parsed as T;
+}
+
+/**
+ * Fetches a binary response. Separate from `request` because the API is reached with
+ * a bearer token from local storage, so a plain `<a href>` or `<iframe src>` would
+ * arrive unauthenticated - the bytes have to be pulled here and handed to the browser
+ * as an object URL instead.
+ */
+async function requestBlob(path: string): Promise<Blob> {
+  const token = session.getToken();
+
+  const response = await fetchWithWake(
+    buildUrl(path),
+    {
+      method: "GET",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      cache: "no-store",
+    },
+    true,
+  );
+
+  if (!response.ok) {
+    // A failure still answers with problem details rather than the file.
+    const body = await response.text();
+    throw toApiError(response.status, body ? safeJsonParse(body) : null);
+  }
+
+  return response.blob();
 }
 
 function safeJsonParse(body: string): unknown {
@@ -251,11 +282,15 @@ function defaultMessageFor(status: number) {
 const get = <T,>(path: string, query?: Record<string, QueryValue>) =>
   request<T>(path, { method: "GET", query });
 
+/** FormData goes out as-is; anything else is JSON. */
+const toBody = (body: unknown) =>
+  body === undefined ? undefined : body instanceof FormData ? body : JSON.stringify(body);
+
 const post = <T,>(path: string, body?: unknown) =>
-  request<T>(path, { method: "POST", body: body === undefined ? undefined : JSON.stringify(body) });
+  request<T>(path, { method: "POST", body: toBody(body) });
 
 const put = <T,>(path: string, body?: unknown) =>
-  request<T>(path, { method: "PUT", body: body === undefined ? undefined : JSON.stringify(body) });
+  request<T>(path, { method: "PUT", body: toBody(body) });
 
 const del = <T,>(path: string) => request<T>(path, { method: "DELETE" });
 
@@ -390,10 +425,25 @@ export const api = {
       pageSize?: number;
     }) => get<PagedResult<Submission>>("/api/submissions", query),
     get: (id: string) => get<Submission>(`/api/submissions/${id}`),
-    submit: (body: { assignmentId: string; content: string; attachmentUrl?: string | null }) =>
-      post<Submission>("/api/submissions", body),
-    update: (id: string, body: { content: string; attachmentUrl?: string | null }) =>
-      put<Submission>(`/api/submissions/${id}`, body),
+
+    submit: (assignmentId: string, file: File) => {
+      const form = new FormData();
+      form.append("assignmentId", assignmentId);
+      form.append("file", file);
+
+      return post<Submission>("/api/submissions", form);
+    },
+
+    update: (id: string, file: File) => {
+      const form = new FormData();
+      form.append("file", file);
+
+      return put<Submission>(`/api/submissions/${id}`, form);
+    },
+
+    /** The submitted PDF itself, for previewing or saving. */
+    file: (id: string) => requestBlob(`/api/submissions/${id}/file`),
+
     grade: (id: string, body: { marks: number; feedback?: string | null }) =>
       post<Submission>(`/api/submissions/${id}/grade`, body),
     changeStatus: (id: string, status: SubmissionStatus) =>

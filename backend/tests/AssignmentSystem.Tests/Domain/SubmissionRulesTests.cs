@@ -1,6 +1,8 @@
 using AssignmentSystem.Domain.Entities;
 using AssignmentSystem.Domain.Enums;
 using AssignmentSystem.Domain.Exceptions;
+using AssignmentSystem.Domain.ValueObjects;
+using AssignmentSystem.Tests.TestSupport;
 
 namespace AssignmentSystem.Tests.Domain;
 
@@ -29,6 +31,13 @@ public class SubmissionRulesTests
         PublishedAt = Now
     };
 
+    /// <summary>
+    /// A PDF named after the attempt it stands for, so tests can tell one attempt from
+    /// the next by looking at the stored file name.
+    /// </summary>
+    private static SubmittedDocument Pdf(string fileName) =>
+        new(fileName, TestPdf.Bytes(fileName));
+
     // ------------------------------------------------------------ handing in
 
     [Fact]
@@ -36,7 +45,7 @@ public class SubmissionRulesTests
     {
         var assignment = Published();
 
-        var submission = Submission.Create(assignment, StudentId, "My answer.", null, Now);
+        var submission = Submission.Create(assignment, StudentId, Pdf("my-answer.pdf"), Now);
 
         Assert.Equal(SubmissionStatus.Submitted, submission.Status);
         Assert.False(submission.IsLate);
@@ -49,7 +58,7 @@ public class SubmissionRulesTests
     {
         var assignment = Published(deadline: Now.AddDays(-1), allowLate: true);
 
-        var submission = Submission.Create(assignment, StudentId, "Late answer.", null, Now);
+        var submission = Submission.Create(assignment, StudentId, Pdf("late-answer.pdf"), Now);
 
         Assert.Equal(SubmissionStatus.Late, submission.Status);
         Assert.True(submission.IsLate);
@@ -61,7 +70,7 @@ public class SubmissionRulesTests
         var assignment = Published(deadline: Now.AddDays(-1), allowLate: false);
 
         var error = Assert.Throws<BusinessRuleViolationException>(
-            () => Submission.Create(assignment, StudentId, "Too late.", null, Now));
+            () => Submission.Create(assignment, StudentId, Pdf("too-late.pdf"), Now));
 
         Assert.Contains("deadline has passed", error.Message);
     }
@@ -73,7 +82,7 @@ public class SubmissionRulesTests
         assignment.Status = AssignmentStatus.Draft;
 
         var error = Assert.Throws<BusinessRuleViolationException>(
-            () => Submission.Create(assignment, StudentId, "Too early.", null, Now));
+            () => Submission.Create(assignment, StudentId, Pdf("too-early.pdf"), Now));
 
         Assert.Contains("not open for submissions", error.Message);
     }
@@ -85,7 +94,7 @@ public class SubmissionRulesTests
         assignment.Status = AssignmentStatus.Closed;
 
         Assert.Throws<BusinessRuleViolationException>(
-            () => Submission.Create(assignment, StudentId, "Answer.", null, Now));
+            () => Submission.Create(assignment, StudentId, Pdf("answer.pdf"), Now));
     }
 
     // -------------------------------------------------------------- revising
@@ -94,11 +103,11 @@ public class SubmissionRulesTests
     public void A_student_may_revise_before_the_deadline()
     {
         var assignment = Published();
-        var submission = Submission.Create(assignment, StudentId, "First draft.", null, Now);
+        var submission = Submission.Create(assignment, StudentId, Pdf("first-draft.pdf"), Now);
 
-        submission.UpdateAnswer(assignment, "Better draft.", null, Now.AddHours(2));
+        submission.UpdateAnswer(assignment, Pdf("better-draft.pdf"), Now.AddHours(2));
 
-        Assert.Equal("Better draft.", submission.Content);
+        Assert.Equal("better-draft.pdf", submission.FileName);
         Assert.Equal(2, submission.AttemptCount);
         Assert.Equal(Now.AddHours(2), submission.UpdatedAt);
         Assert.False(submission.IsLate);
@@ -108,32 +117,32 @@ public class SubmissionRulesTests
     public void Revising_is_refused_when_the_assignment_allows_only_one_attempt()
     {
         var assignment = Published(allowResubmit: false);
-        var submission = Submission.Create(assignment, StudentId, "One shot.", null, Now);
+        var submission = Submission.Create(assignment, StudentId, Pdf("one-shot.pdf"), Now);
 
         var error = Assert.Throws<BusinessRuleViolationException>(
-            () => submission.UpdateAnswer(assignment, "Second try.", null, Now.AddHours(1)));
+            () => submission.UpdateAnswer(assignment, Pdf("second-try.pdf"), Now.AddHours(1)));
 
         Assert.Contains("does not allow a submission to be updated", error.Message);
-        Assert.Equal("One shot.", submission.Content);
+        Assert.Equal("one-shot.pdf", submission.FileName);
     }
 
     [Fact]
     public void Revising_after_the_deadline_is_refused_when_late_work_is_barred()
     {
         var assignment = Published(deadline: Now.AddHours(1));
-        var submission = Submission.Create(assignment, StudentId, "First draft.", null, Now);
+        var submission = Submission.Create(assignment, StudentId, Pdf("first-draft.pdf"), Now);
 
         Assert.Throws<BusinessRuleViolationException>(
-            () => submission.UpdateAnswer(assignment, "Later draft.", null, Now.AddDays(1)));
+            () => submission.UpdateAnswer(assignment, Pdf("later-draft.pdf"), Now.AddDays(1)));
     }
 
     [Fact]
     public void A_revision_that_lands_after_the_deadline_becomes_late()
     {
         var assignment = Published(deadline: Now.AddHours(1), allowLate: true);
-        var submission = Submission.Create(assignment, StudentId, "On time.", null, Now);
+        var submission = Submission.Create(assignment, StudentId, Pdf("on-time.pdf"), Now);
 
-        submission.UpdateAnswer(assignment, "Now overdue.", null, Now.AddDays(1));
+        submission.UpdateAnswer(assignment, Pdf("now-overdue.pdf"), Now.AddDays(1));
 
         Assert.True(submission.IsLate);
         Assert.Equal(SubmissionStatus.Late, submission.Status);
@@ -143,14 +152,14 @@ public class SubmissionRulesTests
     public void Graded_work_is_frozen()
     {
         var assignment = Published();
-        var submission = Submission.Create(assignment, StudentId, "Answer.", null, Now);
+        var submission = Submission.Create(assignment, StudentId, Pdf("answer.pdf"), Now);
         submission.Grade(assignment, 15m, "Good.", TeacherId, Now.AddHours(1));
 
         var error = Assert.Throws<BusinessRuleViolationException>(
-            () => submission.UpdateAnswer(assignment, "Sneaky edit.", null, Now.AddHours(2)));
+            () => submission.UpdateAnswer(assignment, Pdf("sneaky-edit.pdf"), Now.AddHours(2)));
 
         Assert.Contains("already been graded", error.Message);
-        Assert.Equal("Answer.", submission.Content);
+        Assert.Equal("answer.pdf", submission.FileName);
     }
 
     [Fact]
@@ -158,12 +167,12 @@ public class SubmissionRulesTests
     {
         // The teacher asked for a redo, so the closed window should not block it.
         var assignment = Published(deadline: Now.AddHours(1), allowLate: false);
-        var submission = Submission.Create(assignment, StudentId, "First attempt.", null, Now);
+        var submission = Submission.Create(assignment, StudentId, Pdf("first-attempt.pdf"), Now);
         submission.ChangeStatus(SubmissionStatus.Returned, Now.AddHours(2));
 
-        submission.UpdateAnswer(assignment, "Revised after feedback.", null, Now.AddDays(3));
+        submission.UpdateAnswer(assignment, Pdf("revised-after-feedback.pdf"), Now.AddDays(3));
 
-        Assert.Equal("Revised after feedback.", submission.Content);
+        Assert.Equal("revised-after-feedback.pdf", submission.FileName);
         Assert.Equal(SubmissionStatus.Submitted, submission.Status);
     }
 
@@ -171,11 +180,11 @@ public class SubmissionRulesTests
     public void Work_returned_for_revision_keeps_the_lateness_of_the_original_attempt()
     {
         var assignment = Published(deadline: Now.AddDays(-1), allowLate: true);
-        var submission = Submission.Create(assignment, StudentId, "Late attempt.", null, Now);
+        var submission = Submission.Create(assignment, StudentId, Pdf("late-attempt.pdf"), Now);
         Assert.True(submission.IsLate);
 
         submission.ChangeStatus(SubmissionStatus.Returned, Now.AddHours(1));
-        submission.UpdateAnswer(assignment, "Revised.", null, Now.AddHours(2));
+        submission.UpdateAnswer(assignment, Pdf("revised.pdf"), Now.AddHours(2));
 
         Assert.True(submission.IsLate);
         Assert.Equal(SubmissionStatus.Late, submission.Status);
@@ -187,7 +196,7 @@ public class SubmissionRulesTests
     public void Grading_records_marks_feedback_and_the_grader()
     {
         var assignment = Published();
-        var submission = Submission.Create(assignment, StudentId, "Answer.", null, Now);
+        var submission = Submission.Create(assignment, StudentId, Pdf("answer.pdf"), Now);
 
         submission.Grade(assignment, 17.5m, "Well argued.", TeacherId, Now.AddHours(3));
 
@@ -202,7 +211,7 @@ public class SubmissionRulesTests
     public void Marks_above_the_assignment_maximum_are_refused()
     {
         var assignment = Published();
-        var submission = Submission.Create(assignment, StudentId, "Answer.", null, Now);
+        var submission = Submission.Create(assignment, StudentId, Pdf("answer.pdf"), Now);
 
         var error = Assert.Throws<BusinessRuleViolationException>(
             () => submission.Grade(assignment, 21m, null, TeacherId, Now));
@@ -216,7 +225,7 @@ public class SubmissionRulesTests
     public void Negative_marks_are_refused()
     {
         var assignment = Published();
-        var submission = Submission.Create(assignment, StudentId, "Answer.", null, Now);
+        var submission = Submission.Create(assignment, StudentId, Pdf("answer.pdf"), Now);
 
         Assert.Throws<BusinessRuleViolationException>(
             () => submission.Grade(assignment, -1m, null, TeacherId, Now));
@@ -228,7 +237,7 @@ public class SubmissionRulesTests
     public void Marks_at_the_boundaries_are_accepted(int marks)
     {
         var assignment = Published();
-        var submission = Submission.Create(assignment, StudentId, "Answer.", null, Now);
+        var submission = Submission.Create(assignment, StudentId, Pdf("answer.pdf"), Now);
 
         submission.Grade(assignment, marks, null, TeacherId, Now);
 
@@ -241,7 +250,7 @@ public class SubmissionRulesTests
     public void Returning_a_graded_submission_clears_the_previous_result()
     {
         var assignment = Published();
-        var submission = Submission.Create(assignment, StudentId, "Answer.", null, Now);
+        var submission = Submission.Create(assignment, StudentId, Pdf("answer.pdf"), Now);
         submission.Grade(assignment, 12m, "Redo section 2.", TeacherId, Now.AddHours(1));
 
         submission.ChangeStatus(SubmissionStatus.Returned, Now.AddHours(2));
@@ -256,7 +265,7 @@ public class SubmissionRulesTests
     public void A_submission_cannot_be_flipped_to_graded_without_marks()
     {
         var assignment = Published();
-        var submission = Submission.Create(assignment, StudentId, "Answer.", null, Now);
+        var submission = Submission.Create(assignment, StudentId, Pdf("answer.pdf"), Now);
 
         var error = Assert.Throws<BusinessRuleViolationException>(
             () => submission.ChangeStatus(SubmissionStatus.Graded, Now));

@@ -142,40 +142,11 @@ VALUES
 ON CONFLICT ("Id") DO NOTHING;
 
 -- ----------------------------------------------------------- submissions ----
-
-INSERT INTO submissions (
-  "Id", "AssignmentId", "StudentId", "Content", "AttachmentUrl", "Status",
-  "IsLate", "AttemptCount", "SubmittedAt", "UpdatedAt",
-  "Marks", "Feedback", "GradedAt", "GradedByTeacherId")
-VALUES
-  -- Awaiting grading.
-  ('00000000-0000-0000-0000-000000000601', '00000000-0000-0000-0000-000000000501',
-   '00000000-0000-0000-0000-000000000021',
-   'Answers to questions 1-10 with working shown for each step.',
-   NULL, 'Submitted', FALSE, 1, now() - interval '1 day', NULL,
-   NULL, NULL, NULL, NULL),
-
-  -- Already graded, so the student dashboard has marks and feedback to show.
-  ('00000000-0000-0000-0000-000000000602', '00000000-0000-0000-0000-000000000501',
-   '00000000-0000-0000-0000-000000000022',
-   'All ten equations solved using the quadratic formula.',
-   NULL, 'Graded', FALSE, 1, now() - interval '2 days', NULL,
-   18.00, 'Clear working throughout. Watch the sign errors in questions 7 and 9.',
-   now() - interval '20 hours', '00000000-0000-0000-0000-000000000011'),
-
-  -- Handed in after the deadline on an assignment that permits it.
-  ('00000000-0000-0000-0000-000000000603', '00000000-0000-0000-0000-000000000503',
-   '00000000-0000-0000-0000-000000000023',
-   'Lab report with the data table and a graph of acceleration against ramp angle.',
-   NULL, 'Late', TRUE, 1, now() - interval '1 day', NULL,
-   NULL, NULL, NULL, NULL),
-
-  -- Returned for revision: the student may submit again despite the deadline.
-  ('00000000-0000-0000-0000-000000000604', '00000000-0000-0000-0000-000000000505',
-   '00000000-0000-0000-0000-000000000021',
-   'Proofs for statements 1-6.',
-   NULL, 'Returned', FALSE, 2, now() - interval '12 days', now() - interval '11 days',
-   NULL, NULL, NULL, NULL)
-ON CONFLICT ("Id") DO NOTHING;
+--
+-- Deliberately empty. A submission is a PDF a student uploaded, so seeding one would
+-- mean committing an invented document to the repository. Sign in as a student, open
+-- a published assignment and upload a real PDF instead - the graded, late and
+-- returned states are all reachable from there by grading or returning the work as
+-- the teacher who owns the assignment.
 
 COMMIT;

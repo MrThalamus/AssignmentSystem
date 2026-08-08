@@ -17,6 +17,7 @@ public interface IApplicationDbContext
     DbSet<Enrollment> Enrollments { get; }
     DbSet<Assignment> Assignments { get; }
     DbSet<Submission> Submissions { get; }
+    DbSet<SubmissionFile> SubmissionFiles { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

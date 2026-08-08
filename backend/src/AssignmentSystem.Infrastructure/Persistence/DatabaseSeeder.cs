@@ -13,11 +13,13 @@ public interface IDatabaseSeeder
 }
 
 /// <summary>
-/// Populates the demo dataset described in the README. Every row is keyed on a fixed
-/// id from <see cref="SeedIds"/> and inserted only when missing, so running this on
-/// an already-seeded database is a no-op rather than a duplicate-key failure.
-/// Deadlines are computed relative to the run time so the demo always has a mix of
-/// open, overdue and closed work.
+/// Populates the demo dataset described in the README: people, academics and
+/// assignments, but no submissions - those are uploaded PDFs, and the seeder has
+/// nothing truthful to put in one. Every row is keyed on a fixed id from
+/// <see cref="SeedIds"/> and inserted only when missing, so running this on an
+/// already-seeded database is a no-op rather than a duplicate-key failure. Deadlines
+/// are computed relative to the run time so the demo always has a mix of open,
+/// overdue and closed work.
 /// </summary>
 public class DatabaseSeeder : IDatabaseSeeder
 {
@@ -51,7 +53,11 @@ public class DatabaseSeeder : IDatabaseSeeder
         await SeedCourseSubjectsAsync(now, ct);
         await SeedEnrollmentsAsync(now, ct);
         await SeedAssignmentsAsync(now, ct);
-        await SeedSubmissionsAsync(now, ct);
+
+        // Submissions are deliberately not seeded. One is a PDF the student uploaded,
+        // and inventing a file to stand in for that would put a fabricated document in
+        // the repository - so the demo starts with assignments waiting to be answered
+        // and the first submission is a real upload.
 
         _logger.LogInformation("Demo data seeding completed.");
     }
@@ -232,69 +238,6 @@ public class DatabaseSeeder : IDatabaseSeeder
         };
 
         await AddMissingAsync(_db.Assignments, assignments, a => a.Id, ct);
-    }
-
-    // ----------------------------------------------------------- submissions
-
-    private async Task SeedSubmissionsAsync(DateTime now, CancellationToken ct)
-    {
-        var submissions = new[]
-        {
-            new Submission
-            {
-                Id = SeedIds.SubmissionRafiAlgebra,
-                AssignmentId = SeedIds.AssignmentAlgebra,
-                StudentId = SeedIds.StudentRafi,
-                Content = "Answers to questions 1-10 with working shown for each step.",
-                Status = SubmissionStatus.Submitted,
-                IsLate = false,
-                AttemptCount = 1,
-                SubmittedAt = now.AddDays(-1)
-            },
-            // Already graded, so the student dashboard has marks and feedback to show.
-            new Submission
-            {
-                Id = SeedIds.SubmissionTasnimAlgebra,
-                AssignmentId = SeedIds.AssignmentAlgebra,
-                StudentId = SeedIds.StudentTasnim,
-                Content = "All ten equations solved using the quadratic formula.",
-                Status = SubmissionStatus.Graded,
-                IsLate = false,
-                AttemptCount = 1,
-                SubmittedAt = now.AddDays(-2),
-                Marks = 18m,
-                Feedback = "Clear working throughout. Watch the sign errors in questions 7 and 9.",
-                GradedAt = now.AddHours(-20),
-                GradedByTeacherId = SeedIds.TeacherNazmul
-            },
-            // Handed in after the deadline on an assignment that permits it.
-            new Submission
-            {
-                Id = SeedIds.SubmissionImranMotionLate,
-                AssignmentId = SeedIds.AssignmentMotionLab,
-                StudentId = SeedIds.StudentImran,
-                Content = "Lab report with the data table and a graph of acceleration against ramp angle.",
-                Status = SubmissionStatus.Late,
-                IsLate = true,
-                AttemptCount = 1,
-                SubmittedAt = now.AddDays(-1)
-            },
-            // Returned for revision: the student may submit again despite the deadline.
-            new Submission
-            {
-                Id = SeedIds.SubmissionRafiGeometry,
-                AssignmentId = SeedIds.AssignmentGeometryClosed,
-                StudentId = SeedIds.StudentRafi,
-                Content = "Proofs for statements 1-6.",
-                Status = SubmissionStatus.Returned,
-                IsLate = false,
-                AttemptCount = 2,
-                SubmittedAt = now.AddDays(-12),
-                UpdatedAt = now.AddDays(-11)
-            }
-        };
-
-        await AddMissingAsync(_db.Submissions, submissions, s => s.Id, ct);
     }
 
     // -------------------------------------------------------------- helpers
